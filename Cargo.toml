@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 binrw = "0.8"
+flate2 = "1.0"
