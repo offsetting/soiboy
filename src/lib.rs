@@ -1,142 +1,46 @@
 use std::fs::{create_dir_all, File};
 use std::io::{BufReader, Read};
 use std::io;
-use std::io::prelude::*;
-use std::mem::size_of_val;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use binrw::{BinRead, BinReaderExt, BinResult};
-use flate2::Compression;
+use binrw::BinResult;
 use flate2::read::ZlibDecoder;
-use flate2::write::ZlibEncoder;
 
-#[derive(BinRead, Debug)]
-struct Bounding {
-  min_x: f32,
-  max_x: f32,
+use crate::toc::{ComponentHeader, read_toc, Section};
+use crate::toc::ComponentType::Texture;
 
-  min_y: f32,
-  max_y: f32,
-
-  min_z: f32,
-  max_z: f32,
-}
-
-#[derive(BinRead, Debug)]
-struct MemoryEntry {
-  offset: i32,
-  size: i32,
-}
-
-#[derive(BinRead, Debug)]
-#[br(repr = i32)]
-enum ComponentType {
-  RenderableModel,
-  Texture,
-  CollisionModel,
-  UserData,
-  MotionPack,
-  CollisionGrid,
-}
-
-#[derive(BinRead, Debug)]
-struct ZlibHeader {
-  uncached_total_size: i32,
-  cached_total_size: i32,
-
-  uncached_amount: i32,
-  cached_amount: i32,
-
-  #[br(count = uncached_amount)]
-  uncached_sizes: Vec<i32>,
-
-  #[br(count = cached_amount)]
-  cached_sizes: Vec<i32>,
-}
-
-#[derive(BinRead, Debug)]
-struct SectionHeader {
-  name: [char; 260],
-
-  total_component_count: i32,
-  uncached_component_count: i32,
-  cached_component_count: i32,
-
-  shared_section_offset: i32,
-  uncached_page_offset: i32,
-  cached_page_offset: i32,
-
-  link_table: [i32; 8],
-
-  bounding: Bounding,
-
-  memory_entry: MemoryEntry,
-  uncached_data_size: i32,
-  cached_data_size: i32,
-
-  zlib_header: ZlibHeader,
-}
-
-#[derive(BinRead, Debug)]
-struct ComponentHeader {
-  path: [char; 260],
-
-  instance_id: i32,
-  component_id: i32,
-  memory_entry: MemoryEntry,
-  component_type: ComponentType,
-}
-
-#[derive(BinRead, Debug)]
-struct Section {
-  header: SectionHeader,
-
-  #[br(big, count = header.uncached_component_count)]
-  uncached_components: Vec<ComponentHeader>,
-
-  #[br(big, count = header.cached_component_count)]
-  cached_components: Vec<ComponentHeader>,
-}
+mod toc;
+mod soi;
 
 fn extract(toc: PathBuf, str: PathBuf, destination: PathBuf) -> BinResult<()> {
-  let mut toc_file = BufReader::new(File::open(toc)?);
   let mut str_file = BufReader::new(File::open(str)?);
 
-  let mut sections: Vec<Section> = Vec::new();
-
-  // read sections until an error happens
-  loop {
-    match toc_file.read_be() {
-      Ok(section) => sections.push(section),
-      Err(_) => break
-    };
-  }
-
+  let sections = read_toc(toc)?;
   println!("Found {} sections", sections.len());
 
-  println!("{:#?}", sections.iter().next().unwrap());
-
-  // for section in sections {
-  process_section(sections.iter().next().unwrap(), &mut str_file);
-  // }
+  for section in 0..5 {
+    process_section(section as i32, &sections[section], &mut str_file);
+  }
 
   Ok(())
 }
 
-fn process_section(section: &Section, str: &mut BufReader<File>) -> io::Result<()> {
+fn process_section(i: i32, section: &Section, str: &mut BufReader<File>) -> io::Result<()> {
   let zlib_header = &section.header.zlib_header;
 
-  let uncached = decode_zlib_chunks(str, &zlib_header.uncached_sizes)?;
-  decode_components(&uncached, &section.uncached_components)?;
+  println!("{}", i);
 
-  let cached = decode_zlib_chunks(str, &zlib_header.cached_sizes)?;
-  decode_components(&cached, &section.cached_components)?;
+  let uncached = decode_zlib_chunks(str, zlib_header.uncached_total_size, &zlib_header.uncached_sizes)?;
+  decode_components(&uncached, i, &section.uncached_components)?;
+
+  let cached = decode_zlib_chunks(str, zlib_header.cached_total_size, &zlib_header.cached_sizes)?;
+  decode_components(&cached, i, &section.cached_components)?;
 
   Ok(())
 }
 
-fn decode_zlib_chunks(str: &mut BufReader<File>, sizes: &[i32]) -> io::Result<Vec<u8>> {
-  let mut whole_section = Vec::new();
+fn decode_zlib_chunks(str: &mut BufReader<File>, total_size: i32, sizes: &[i32]) -> io::Result<Vec<u8>> {
+  let mut whole_section = vec![0; total_size as usize];
 
   for size in sizes {
     // reading compressed chunk
@@ -151,8 +55,12 @@ fn decode_zlib_chunks(str: &mut BufReader<File>, sizes: &[i32]) -> io::Result<Ve
   Ok(whole_section)
 }
 
-fn decode_components(data: &[u8], components: &[ComponentHeader]) -> io::Result<()> {
+fn decode_components(data: &[u8], section: i32, components: &[ComponentHeader]) -> io::Result<()> {
   for component in components {
+    if component.component_type != Texture {
+      continue;
+    }
+
     let start = component.memory_entry.offset as usize;
     let end = start + component.memory_entry.size as usize;
 
@@ -160,7 +68,7 @@ fn decode_components(data: &[u8], components: &[ComponentHeader]) -> io::Result<
 
     println!("{}..{} {} - {} {}", start, end, data.len(), component.component_id, component.path.iter().collect::<String>());
 
-    let out_path = PathBuf::from(format!("./data/out/{}", component.component_id));
+    let out_path = PathBuf::from(format!("./data/out/{}/{}", section, component.component_id));
     create_dir_all(out_path.parent().unwrap());
 
     let mut out = File::create(&out_path)?;
@@ -174,15 +82,21 @@ fn decode_components(data: &[u8], components: &[ComponentHeader]) -> io::Result<
 mod tests {
   use std::path::PathBuf;
 
-  use crate::extract;
+  use crate::soi::read_soi;
 
   #[test]
   fn it_works() {
-    extract(
-      PathBuf::from("./data/VehicleInfo.x360.toc"),
-      PathBuf::from("data/VehicleInfo.x360.str"),
-      PathBuf::from("./data/dist"),
-    )
-      .unwrap()
+    // extract(
+    //   PathBuf::from("./data/VehicleInfo.x360.toc"),
+    //   PathBuf::from("data/VehicleInfo.x360.str"),
+    //   PathBuf::from("./data/dist"),
+    // )
+    //   .unwrap()
+    let soi = read_soi(PathBuf::from("./data/VehicleInfo.x360.soi")).unwrap();
+    println!("{:#?}", soi.header);
+
+    for x in soi.streaming_textures {
+      println!("{}", x.model_info.name.iter().collect::<String>());
+    }
   }
 }
