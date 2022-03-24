@@ -57,7 +57,7 @@ pub(crate) struct StreamingTexture {
   pub(crate) model_info: ModelInfo,
   // might be something, currently only padding
   pub(crate) padding: u32,
-  pub(crate) texture: [u8; 52],
+  pub(crate) header: [u8; 52],
 }
 
 #[derive(BinRead, Debug)]

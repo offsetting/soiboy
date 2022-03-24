@@ -76,7 +76,7 @@ pub(crate) struct ComponentHeader {
   pub(crate) path: [char; 260],
 
   pub(crate) instance_id: i32,
-  pub(crate) component_id: i32,
+  pub(crate) id: i32,
   pub(crate) memory_entry: MemoryEntry,
   pub(crate) component_type: ComponentType,
 }
