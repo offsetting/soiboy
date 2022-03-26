@@ -3,6 +3,8 @@ use std::path::PathBuf;
 
 use binrw::{BinRead, BinReaderExt, BinResult};
 
+use crate::texture_header::TextureHeader;
+
 #[derive(BinRead, PartialEq, Debug)]
 #[br(repr = i32)]
 pub(crate) enum StreamingMode {
@@ -57,7 +59,7 @@ pub(crate) struct StreamingTexture {
   pub(crate) model_info: ModelInfo,
   // might be something, currently only padding
   pub(crate) padding: u32,
-  pub(crate) header: [u8; 52],
+  pub(crate) header: TextureHeader,
 }
 
 #[derive(BinRead, Debug)]
@@ -72,7 +74,6 @@ pub(crate) struct Soi {
 
   #[br(count = header.streaming_textures)]
   pub(crate) streaming_textures: Vec<StreamingTexture>,
-
   // #[br(count = header.static_textures)]
   // static_textures: Vec<StaticTexture>,
 

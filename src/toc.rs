@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufReader, Seek};
+use std::io::Seek;
 use std::path::PathBuf;
 
 use binrw::{BinRead, BinReaderExt, BinResult};
@@ -92,7 +92,9 @@ pub(crate) struct Section {
   pub(crate) cached_components: Vec<ComponentHeader>,
 }
 
-pub(crate) fn read_toc(path: PathBuf) -> BinResult<Vec<Section>> {
+pub(crate) type Toc = Vec<Section>;
+
+pub(crate) fn read_toc(path: PathBuf) -> BinResult<Toc> {
   let mut file = File::open(path)?;
 
   let mut sections = Vec::new();
