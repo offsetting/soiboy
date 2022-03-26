@@ -112,7 +112,7 @@ fn decode_components(
     match find_texture_header(soi, section, component.id) {
       Some(header) => {
         println!("{}", serde_json::to_string(&header.metadata())?);
-        out.write_be(header)?;
+        // out.write_be(header)?;
       }
       None => {
         // couldn't find texture using component and section id -> lets try it using instance id
@@ -122,7 +122,7 @@ fn decode_components(
             match find_texture_header(soi, section_id, component_id) {
               Some(header) => {
                 println!("{}", serde_json::to_string(&header.metadata())?);
-                out.write_be(header)?;
+                // out.write_be(header)?;
               }
               None => panic!(
                 "Unable to find texture in soi... {} {} {} {} {}",
@@ -146,12 +146,12 @@ fn decode_components(
 
 fn find_ids_by_instance_id(toc: &Toc, instance_id: i32) -> Option<(i32, i32)> {
   for (index, section) in toc.iter().enumerate() {
-    for comp in section.cached_components {
+    for comp in &section.cached_components {
       if comp.instance_id == instance_id {
         return Some((index as i32, comp.id));
       }
     }
-    for comp in section.uncached_components {
+    for comp in &section.uncached_components {
       if comp.instance_id == instance_id {
         return Some((index as i32, comp.id));
       }
