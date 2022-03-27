@@ -1,7 +1,7 @@
 use binrw::{BinRead, BinWrite};
-use modular_bitfield::{bitfield, specifiers::*, BitfieldSpecifier};
-use serde::ser::SerializeStruct;
+use modular_bitfield::{bitfield, BitfieldSpecifier, specifiers::*};
 use serde::{Serialize, Serializer};
+use serde::ser::SerializeStruct;
 
 // https://github.com/xenia-project/xenia/blob/master/src/xenia/gpu/xenos.h
 // see /licenses/xenia.txt
@@ -266,41 +266,54 @@ pub(crate) struct TextureMetadata {
   pub(crate) clamp_y: ClampMode,
   pub(crate) clamp_z: ClampMode,
   pub(crate) signed_repeating_fraction: SignedRepeatingFractionMode,
-  pub(crate) dim_tbd: B2, // u32
-  pub(crate) pitch: B9,   // u32
+  pub(crate) dim_tbd: B2,
+  // u32
+  pub(crate) pitch: B9,
+  // u32
   pub(crate) tiled: bool,
   pub(crate) format: TextureFormat,
   pub(crate) endianness: Endian,
   pub(crate) request_size: RequestSize,
   pub(crate) stacked: bool,
   pub(crate) clamp_policy: ClampPolicy,
-  pub(crate) base_address: B20, // u32
+  pub(crate) base_address: B20,
+  // u32
   pub(crate) texture_size: u32,
   pub(crate) num_format: NumFormat,
   pub(crate) swizzle_x: Swizzle,
   pub(crate) swizzle_y: Swizzle,
   pub(crate) swizzle_z: Swizzle,
   pub(crate) swizzle_w: Swizzle,
-  pub(crate) exp_adjust: B6, // i32
+  pub(crate) exp_adjust: B6,
+  // i32
   pub(crate) mag_filter: MipFilter,
   pub(crate) min_filter: MipFilter,
   pub(crate) mip_filter: MipFilter,
   pub(crate) aniso_filter: AnisoFilter,
   pub(crate) arbitrary_filter: ArbitraryFilter,
-  pub(crate) border_size: B1, // u32
+  pub(crate) border_size: B1,
+  // u32
   pub(crate) vol_mag_filter: MinMagFilter,
   pub(crate) vol_min_filter: MinMagFilter,
-  pub(crate) min_mip_level: B4,     // u32
-  pub(crate) max_mip_level: B4,     // u32
-  pub(crate) mag_aniso_walk: B1,    // u32
-  pub(crate) min_aniso_walk: B1,    // u32
-  pub(crate) lodbias: B10,          // i32
-  pub(crate) grad_exp_adjust_h: B5, // i32
-  pub(crate) grad_exp_adjust_v: B5, // i32
+  pub(crate) min_mip_level: B4,
+  // u32
+  pub(crate) max_mip_level: B4,
+  // u32
+  pub(crate) mag_aniso_walk: B1,
+  // u32
+  pub(crate) min_aniso_walk: B1,
+  // u32
+  pub(crate) lodbias: B10,
+  // i32
+  pub(crate) grad_exp_adjust_h: B5,
+  // i32
+  pub(crate) grad_exp_adjust_v: B5,
+  // i32
   pub(crate) border_color: BorderColor,
   pub(crate) force_bc_w_to_max: bool,
   pub(crate) tri_clamp: TriClamp,
-  pub(crate) aniso_bias: B4, // i32
+  pub(crate) aniso_bias: B4,
+  // i32
   pub(crate) dimension: Dimension,
   pub(crate) packed_mips: bool,
   pub(crate) mip_address: B20, // u32
@@ -358,7 +371,7 @@ impl Serialize for TextureMetadata {
     state.serialize_field("clamp_policy", &self.clamp_policy())?;
     state.serialize_field("base_address", &self.base_address())?;
 
-    let texture_size: [u8; 4] = self.texture_size().to_be_bytes();
+    let mut texture_size: [u8; 4] = self.texture_size().to_le_bytes();
 
     match &self.dimension() {
       Dimension::OneD => {
