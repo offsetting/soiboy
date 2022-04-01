@@ -1,7 +1,7 @@
 use std::fs::{create_dir_all, File};
 use std::io;
 use std::io::{BufReader, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use binrw::BinWriterExt;
 use flate2::read::ZlibDecoder;
@@ -103,15 +103,18 @@ fn decode_components(
       clean_string(&component.path)
     );
 
-    let out_path = PathBuf::from(format!("./data/out/{}/{}", section, component.id));
+    let out_path = PathBuf::from(format!("./data/out/{}", clean_string(&component.path)));
     create_dir_all(out_path.parent().unwrap())?;
+    let out_path_json = out_path.with_extension("json");
 
     let mut out = File::create(&out_path)?;
+    let mut out_json = File::create(&out_path_json)?;
 
     // extracting texture header from directly from soi using section and component id
     match find_texture_header(soi, section, component.id) {
       Some(header) => {
-        println!("{}", serde_json::to_string(&header.metadata())?);
+        // println!("{}", serde_json::to_string(&header.metadata())?);
+        serde_json::to_writer(&mut out_json, &header.metadata())?;
         // out.write_be(header)?;
       }
       None => {
@@ -202,7 +205,7 @@ mod tests {
     extract(
       PathBuf::from("./data/VehicleInfo.x360.soi"),
       PathBuf::from("./data/VehicleInfo.x360.toc"),
-      PathBuf::from("data/VehicleInfo.x360.str"),
+      PathBuf::from("./data/VehicleInfo.x360.str"),
     )
     .unwrap();
   }

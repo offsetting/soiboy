@@ -335,7 +335,7 @@ impl TextureHeader {
   pub(crate) fn metadata(&self) -> TextureMetadata {
     let mut metadata = self.metadata;
 
-    // reversing ever u32 independently
+    // reversing every u32 independently
     for chunk in (0..metadata.len()).step_by(4) {
       let dword = &mut metadata[chunk..chunk + 4];
       dword.reverse();
