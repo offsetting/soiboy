@@ -52,16 +52,16 @@ pub(crate) enum TextureFormat {
   _8A = 8,
   _8B = 9,
   _8_8 = 10,
-  _CrY1CbY0Rep = 11,
-  _Y1CrY0CbRep = 12,
+  CrY1CbY0Rep = 11,
+  Y1CrY0CbRep = 12,
   _16_16Edram = 13,
   _8_8_8_8A = 14,
   _4_4_4_4 = 15,
   _10_11_11 = 16,
   _11_11_10 = 17,
-  _Dxt1 = 18,
-  _Dxt2_3 = 19,
-  _Dxt4_5 = 20,
+  Dxt1 = 18,
+  Dxt2_3 = 19,
+  Dxt4_5 = 20,
   _16_16_16_16Edram = 21,
   _24_8 = 22,
   _24_8Float = 23,
@@ -90,7 +90,7 @@ pub(crate) enum TextureFormat {
   _16Interlaced = 46,
   _16MpegInterlaced = 47,
   _16_16MpegInterlaced = 48,
-  _Dxn = 49,
+  Dxn = 49,
   _8_8_8_8As16_16_16_16 = 50,
   _Dxt1As16_16_16_16 = 51,
   _Dxt2_3As16_16_16_16 = 52,
@@ -99,10 +99,10 @@ pub(crate) enum TextureFormat {
   _10_11_11As16_16_16_16 = 55,
   _11_11_10As16_16_16_16 = 56,
   _32_32_32Float = 57,
-  _Dxt3A = 58,
-  _Dxt5A = 59,
-  _Ctx1 = 60,
-  _Dxt3AAs1_1_1_1 = 61,
+  Dxt3A = 58,
+  Dxt5A = 59,
+  Ctx1 = 60,
+  Dxt3AAs1_1_1_1 = 61,
   _8_8_8_8GammaEdram = 62,
   _2_10_10_10FloatEdram = 63,
 }
@@ -333,7 +333,7 @@ pub(crate) struct TextureHeader {
 
 impl TextureHeader {
   pub(crate) fn metadata(&self) -> TextureMetadata {
-    let mut metadata: [u8; 24] = self.metadata;
+    let mut metadata = self.metadata;
 
     // reversing ever u32 independently
     for chunk in (0..metadata.len()).step_by(4) {
@@ -437,6 +437,7 @@ impl Serialize for TextureSize2D {
 
     state.serialize_field("width", &self.width())?;
     state.serialize_field("height", &self.height())?;
+    state.serialize_field("stack_depth", &self.stack_depth())?;
 
     state.end()
   }
