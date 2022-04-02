@@ -9,15 +9,14 @@ use x_flipper_360::{Config, Format};
 
 use crate::soi::{read_soi, Soi};
 use crate::texture_header::{Dimension, TextureFormat, TextureHeader, TextureSize2D};
+use crate::toc::{ComponentHeader, read_toc, Section, Toc};
 use crate::toc::ComponentType::Texture;
-use crate::toc::{read_toc, ComponentHeader, Section, Toc};
 
 mod soi;
 mod texture_header;
 mod toc;
 
 fn extract(soi: PathBuf, toc: PathBuf, str: PathBuf) -> anyhow::Result<()> {
-
   let mut soi = read_soi(soi)?;
   let toc = read_toc(toc)?;
 
@@ -105,7 +104,7 @@ fn decode_components(
       clean_string(&component.path)
     );
 
-    let out_path = PathBuf::from(format!("./data/out/{}.dds", clean_string(&component.path)));
+    let out_path = PathBuf::from(format!("./data/out/{}.dds", clean_string(&component.path).replace('\\', "/")));
     create_dir_all(out_path.parent().unwrap())?;
 
     let mut out = File::create(&out_path)?;
@@ -170,7 +169,7 @@ fn write_dds(data: &[u8],
       TextureFormat::Dxt4_5 => Format::Dxt5,
       _ => panic!("https://youtu.be/p64PeG5O2mo"),
     },
-    mipmap_levels: Some((metadata.max_mip_level() - metadata.min_mip_level()).into()),
+    mipmap_levels: Some(1.max((metadata.max_mip_level() - metadata.min_mip_level()) as u32)),
     base_address: metadata.base_address(),
     mip_address: metadata.mip_address(),
   };
@@ -239,6 +238,6 @@ mod tests {
       PathBuf::from("./data/VehicleInfo.x360.toc"),
       PathBuf::from("./data/VehicleInfo.x360.str"),
     )
-    .unwrap();
+      .unwrap();
   }
 }
