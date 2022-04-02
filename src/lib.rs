@@ -5,9 +5,10 @@ use std::path::{Path, PathBuf};
 
 use binrw::BinWriterExt;
 use flate2::read::ZlibDecoder;
+use x_flipper_360::{Config, Format};
 
 use crate::soi::{read_soi, Soi};
-use crate::texture_header::TextureHeader;
+use crate::texture_header::{Dimension, TextureFormat, TextureHeader, TextureSize2D};
 use crate::toc::ComponentType::Texture;
 use crate::toc::{read_toc, ComponentHeader, Section, Toc};
 
@@ -16,12 +17,13 @@ mod texture_header;
 mod toc;
 
 fn extract(soi: PathBuf, toc: PathBuf, str: PathBuf) -> anyhow::Result<()> {
+
   let mut soi = read_soi(soi)?;
   let toc = read_toc(toc)?;
 
   let mut str_file = BufReader::new(File::open(str)?);
 
-  for section in 0..5 {
+  for section in 0..2 {
     process_section(section as i32, &toc[section], &mut str_file, &mut soi, &toc)?;
   }
 
@@ -103,18 +105,16 @@ fn decode_components(
       clean_string(&component.path)
     );
 
-    let out_path = PathBuf::from(format!("./data/out/{}", clean_string(&component.path)));
+    let out_path = PathBuf::from(format!("./data/out/{}.dds", clean_string(&component.path)));
     create_dir_all(out_path.parent().unwrap())?;
-    let out_path_json = out_path.with_extension("json");
 
     let mut out = File::create(&out_path)?;
-    let mut out_json = File::create(&out_path_json)?;
 
     // extracting texture header from directly from soi using section and component id
     match find_texture_header(soi, section, component.id) {
       Some(header) => {
         // println!("{}", serde_json::to_string(&header.metadata())?);
-        serde_json::to_writer(&mut out_json, &header.metadata())?;
+        write_dds(&data[start..end], &mut out, header);
         // out.write_be(header)?;
       }
       None => {
@@ -124,7 +124,7 @@ fn decode_components(
           Some((section_id, component_id)) => {
             match find_texture_header(soi, section_id, component_id) {
               Some(header) => {
-                println!("{}", serde_json::to_string(&header.metadata())?);
+                write_dds(&data[start..end], &mut out, header);
                 // out.write_be(header)?;
               }
               None => panic!(
@@ -140,11 +140,42 @@ fn decode_components(
         }
       }
     };
-
     out.write_all(&data[start..end])?;
   }
 
   Ok(())
+}
+
+fn write_dds(data: &[u8],
+             out: &mut File,
+             header: &mut TextureHeader) {
+  let metadata = &header.metadata();
+  let texture_size: TextureSize2D = match metadata.dimension() {
+    Dimension::TwoDOrStacked => {
+      TextureSize2D::from_bytes(metadata.texture_size().to_le_bytes())
+    }
+    // todo: implement other dimensions
+    _ => panic!("https://youtu.be/p64PeG5O2mo")
+  };
+
+  let config = Config {
+    width: (texture_size.width() + 1) as u32,
+    height: (texture_size.height() + 1) as u32,
+    depth: None,
+    pitch: metadata.pitch() as u32,
+    tiled: metadata.tiled(),
+    packed_mips: metadata.packed_mips(),
+    format: match metadata.format() {
+      TextureFormat::Dxt1 => Format::Dxt1,
+      TextureFormat::Dxt4_5 => Format::Dxt5,
+      _ => panic!("https://youtu.be/p64PeG5O2mo"),
+    },
+    mipmap_levels: Some((metadata.max_mip_level() - metadata.min_mip_level()).into()),
+    base_address: metadata.base_address(),
+    mip_address: metadata.mip_address(),
+  };
+  println!("anal{:?}", config.format);
+  x_flipper_360::convert_to_dds(&config, &data, out);
 }
 
 fn find_ids_by_instance_id(toc: &Toc, instance_id: i32) -> Option<(i32, i32)> {
@@ -202,6 +233,7 @@ mod tests {
 
   #[test]
   fn it_works() {
+    // println!("figge disch");
     extract(
       PathBuf::from("./data/VehicleInfo.x360.soi"),
       PathBuf::from("./data/VehicleInfo.x360.toc"),
