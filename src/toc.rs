@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::Seek;
-use std::path::PathBuf;
+use std::path::Path;
 
 use binrw::{BinRead, BinReaderExt, BinResult};
 
@@ -22,9 +22,9 @@ pub(crate) struct MemoryEntry {
   pub(crate) size: i32,
 }
 
-#[derive(BinRead, PartialEq, Debug)]
+#[derive(BinRead, PartialEq, Copy, Clone, Debug)]
 #[br(repr = i32)]
-pub(crate) enum ComponentType {
+pub enum ComponentKind {
   RenderableModel,
   Texture,
   CollisionModel,
@@ -78,11 +78,11 @@ pub(crate) struct ComponentHeader {
   pub(crate) instance_id: i32,
   pub(crate) id: i32,
   pub(crate) memory_entry: MemoryEntry,
-  pub(crate) component_type: ComponentType,
+  pub(crate) kind: ComponentKind,
 }
 
 #[derive(BinRead, Debug)]
-pub(crate) struct Section {
+pub struct Section {
   pub(crate) header: SectionHeader,
 
   #[br(count = header.uncached_component_count)]
@@ -92,19 +92,48 @@ pub(crate) struct Section {
   pub(crate) cached_components: Vec<ComponentHeader>,
 }
 
-pub(crate) type Toc = Vec<Section>;
+#[derive(Debug)]
+pub struct Toc {
+  pub sections: Vec<Section>,
+}
 
-pub(crate) fn read_toc(path: PathBuf) -> BinResult<Toc> {
-  let mut file = File::open(path)?;
-
-  let mut sections = Vec::new();
-  let file_size = file.metadata()?.len();
-
-  // read sections until the end of the file is reached
-  while file.stream_position()? < file_size {
-    let section = file.read_be()?;
-    sections.push(section);
+impl Toc {
+  pub fn read(path: &Path) -> BinResult<Self> {
+    let mut file = File::open(path)?;
+    Self::read_file(&mut file)
   }
 
-  Ok(sections)
+  pub fn read_file(file: &mut File) -> BinResult<Self> {
+    let mut sections = Vec::new();
+    let file_size = file.metadata()?.len();
+
+    // read sections until the end of the file is reached
+    while file.stream_position()? < file_size {
+      let section = file.read_be()?;
+      sections.push(section);
+    }
+
+    Ok(Self { sections })
+  }
+
+  pub fn get_section(&self, id: u32) -> Option<&Section> {
+    self.sections.get(id as usize)
+  }
+
+  pub fn find_ids(&self, instance_id: u32) -> Option<(u32, u32)> {
+    for (index, section) in self.sections.iter().enumerate() {
+      for component in &section.uncached_components {
+        if component.instance_id == instance_id as i32 {
+          return Some((index as u32, component.id as u32));
+        }
+      }
+      for component in &section.cached_components {
+        if component.instance_id == instance_id as i32 {
+          return Some((index as u32, component.id as u32));
+        }
+      }
+    }
+
+    None
+  }
 }

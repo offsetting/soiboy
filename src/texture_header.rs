@@ -1,7 +1,5 @@
 use binrw::{BinRead, BinWrite};
-use modular_bitfield::{bitfield, BitfieldSpecifier, specifiers::*};
-use serde::{Serialize, Serializer};
-use serde::ser::SerializeStruct;
+use modular_bitfield::{bitfield, specifiers::*, BitfieldSpecifier};
 
 // https://github.com/xenia-project/xenia/blob/master/src/xenia/gpu/xenos.h
 // see /licenses/xenia.txt
@@ -38,7 +36,7 @@ pub(crate) struct TextureSizeStack {
   pub(crate) depth: B6,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 6]
 pub(crate) enum TextureFormat {
   _1Reverse = 0,
@@ -107,14 +105,14 @@ pub(crate) enum TextureFormat {
   _2_10_10_10FloatEdram = 63,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 1]
 pub(crate) enum NumFormat {
   Fraction = 0,
   Integer = 1,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
 pub(crate) enum TextureKind {
   InvalidTexture = 0,
@@ -123,7 +121,7 @@ pub(crate) enum TextureKind {
   Vertex = 3,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
 pub(crate) enum TextureSign {
   Unsigned = 0,
@@ -132,7 +130,7 @@ pub(crate) enum TextureSign {
   Gamma = 3,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 3]
 pub(crate) enum ClampMode {
   Repeat = 0,
@@ -145,7 +143,7 @@ pub(crate) enum ClampMode {
   MirrorClampToBorder = 7,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
 pub(crate) enum Endian {
   None = 0,
@@ -154,14 +152,14 @@ pub(crate) enum Endian {
   _16in32 = 3,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
 pub(crate) enum RequestSize {
   _256Bit = 0,
   _512Bit = 1,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 3]
 pub(crate) enum Swizzle {
   X = 0,
@@ -173,14 +171,14 @@ pub(crate) enum Swizzle {
   Keep = 7,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 1]
 pub(crate) enum ClampPolicy {
   D3D = 0,
   OpenGL = 1,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
 pub(crate) enum Dimension {
   OneD = 0,
@@ -189,7 +187,7 @@ pub(crate) enum Dimension {
   CubeMap = 3,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
 pub(crate) enum BorderColor {
   AgbrBlack = 0,
@@ -198,7 +196,7 @@ pub(crate) enum BorderColor {
   AcbcryBlack = 3,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
 pub(crate) enum TriClamp {
   Normal = 0,
@@ -207,14 +205,14 @@ pub(crate) enum TriClamp {
   ThreeEighths = 3,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 1]
 pub(crate) enum MinMagFilter {
   Point = 0,
   Linear = 1,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
 pub(crate) enum MipFilter {
   Point = 0,
@@ -223,7 +221,7 @@ pub(crate) enum MipFilter {
   Keep = 3,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 3]
 pub(crate) enum AnisoFilter {
   Disabled = 0,
@@ -235,14 +233,14 @@ pub(crate) enum AnisoFilter {
   UseFetchConst = 7,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 1]
 pub(crate) enum SignedRepeatingFractionMode {
   ZeroClampMinusOne = 0,
   NoZero = 1,
 }
 
-#[derive(Serialize, BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug)]
 #[bits = 3]
 pub(crate) enum ArbitraryFilter {
   _2x4Sym = 0,
@@ -345,124 +343,124 @@ impl TextureHeader {
   }
 }
 
-impl Serialize for TextureMetadata {
-  fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-    let mut state = serializer.serialize_struct("GpuTextureFetchConstant", 46)?;
-
-    state.serialize_field("kind", &self.kind())?;
-    state.serialize_field("sign_x", &self.sign_x())?;
-    state.serialize_field("sign_y", &self.sign_y())?;
-    state.serialize_field("sign_z", &self.sign_z())?;
-    state.serialize_field("sign_w", &self.sign_w())?;
-    state.serialize_field("clamp_x", &self.clamp_x())?;
-    state.serialize_field("clamp_y", &self.clamp_y())?;
-    state.serialize_field("clamp_z", &self.clamp_z())?;
-    state.serialize_field(
-      "signed_repeating_fraction",
-      &self.signed_repeating_fraction(),
-    )?;
-    state.serialize_field("dim_tbd", &self.dim_tbd())?;
-    state.serialize_field("pitch", &self.pitch())?;
-    state.serialize_field("tiled", &self.tiled())?;
-    state.serialize_field("format", &self.format())?;
-    state.serialize_field("endianness", &self.endianness())?;
-    state.serialize_field("request_size", &self.request_size())?;
-    state.serialize_field("stacked", &self.stacked())?;
-    state.serialize_field("clamp_policy", &self.clamp_policy())?;
-    state.serialize_field("base_address", &self.base_address())?;
-
-    let mut texture_size: [u8; 4] = self.texture_size().to_le_bytes();
-
-    match &self.dimension() {
-      Dimension::OneD => {
-        state.serialize_field("texture_size", &TextureSize1D::from_bytes(texture_size))?
-      }
-      Dimension::TwoDOrStacked => {
-        state.serialize_field("texture_size", &TextureSize2D::from_bytes(texture_size))?
-      }
-      Dimension::ThreeD => {
-        state.serialize_field("texture_size", &TextureSize3D::from_bytes(texture_size))?
-      }
-      Dimension::CubeMap => {
-        state.serialize_field("texture_size", &TextureSizeStack::from_bytes(texture_size))?
-      }
-    };
-
-    state.serialize_field("num_format", &self.num_format())?;
-    state.serialize_field("swizzle_x", &self.swizzle_x())?;
-    state.serialize_field("swizzle_y", &self.swizzle_y())?;
-    state.serialize_field("swizzle_z", &self.swizzle_z())?;
-    state.serialize_field("swizzle_w", &self.swizzle_w())?;
-    state.serialize_field("exp_adjust", &self.exp_adjust())?;
-    state.serialize_field("mag_filter", &self.mag_filter())?;
-    state.serialize_field("min_filter", &self.min_filter())?;
-    state.serialize_field("mip_filter", &self.mip_filter())?;
-    state.serialize_field("aniso_filter", &self.aniso_filter())?;
-    state.serialize_field("arbitrary_filter", &self.arbitrary_filter())?;
-    state.serialize_field("border_size", &self.border_size())?;
-    state.serialize_field("vol_mag_filter", &self.vol_mag_filter())?;
-    state.serialize_field("vol_min_filter", &self.vol_min_filter())?;
-    state.serialize_field("min_mip_level", &self.min_mip_level())?;
-    state.serialize_field("max_mip_level", &self.max_mip_level())?;
-    state.serialize_field("mag_aniso_walk", &self.mag_aniso_walk())?;
-    state.serialize_field("min_aniso_walk", &self.min_aniso_walk())?;
-    state.serialize_field("lodbias", &self.lodbias())?;
-    state.serialize_field("grad_exp_adjust_h", &self.grad_exp_adjust_h())?;
-    state.serialize_field("grad_exp_adjust_v", &self.grad_exp_adjust_v())?;
-    state.serialize_field("border_color", &self.border_color())?;
-    state.serialize_field("force_bc_w_to_max", &self.force_bc_w_to_max())?;
-    state.serialize_field("tri_clamp", &self.tri_clamp())?;
-    state.serialize_field("aniso_bias", &self.aniso_bias())?;
-    state.serialize_field("dimension", &self.dimension())?;
-    state.serialize_field("packed_mips", &self.packed_mips())?;
-    state.serialize_field("mip_address", &self.mip_address())?;
-
-    state.end()
-  }
-}
-
-impl Serialize for TextureSize1D {
-  fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-    let mut state = serializer.serialize_struct("GpuTextureSize1D", 1)?;
-
-    state.serialize_field("width", &self.width())?;
-
-    state.end()
-  }
-}
-
-impl Serialize for TextureSize2D {
-  fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-    let mut state = serializer.serialize_struct("GpuTextureSize2D", 1)?;
-
-    state.serialize_field("width", &self.width())?;
-    state.serialize_field("height", &self.height())?;
-    state.serialize_field("stack_depth", &self.stack_depth())?;
-
-    state.end()
-  }
-}
-
-impl Serialize for TextureSize3D {
-  fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-    let mut state = serializer.serialize_struct("GpuTextureSize3D", 1)?;
-
-    state.serialize_field("width", &self.width())?;
-    state.serialize_field("height", &self.height())?;
-    state.serialize_field("depth", &self.depth())?;
-
-    state.end()
-  }
-}
-
-impl Serialize for TextureSizeStack {
-  fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-    let mut state = serializer.serialize_struct("GpuTextureSizeStack", 1)?;
-
-    state.serialize_field("width", &self.width())?;
-    state.serialize_field("height", &self.height())?;
-    state.serialize_field("depth", &self.depth())?;
-
-    state.end()
-  }
-}
+// impl Serialize for TextureMetadata {
+//   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+//     let mut state = serializer.serialize_struct("GpuTextureFetchConstant", 46)?;
+//
+//     state.serialize_field("kind", &self.kind())?;
+//     state.serialize_field("sign_x", &self.sign_x())?;
+//     state.serialize_field("sign_y", &self.sign_y())?;
+//     state.serialize_field("sign_z", &self.sign_z())?;
+//     state.serialize_field("sign_w", &self.sign_w())?;
+//     state.serialize_field("clamp_x", &self.clamp_x())?;
+//     state.serialize_field("clamp_y", &self.clamp_y())?;
+//     state.serialize_field("clamp_z", &self.clamp_z())?;
+//     state.serialize_field(
+//       "signed_repeating_fraction",
+//       &self.signed_repeating_fraction(),
+//     )?;
+//     state.serialize_field("dim_tbd", &self.dim_tbd())?;
+//     state.serialize_field("pitch", &self.pitch())?;
+//     state.serialize_field("tiled", &self.tiled())?;
+//     state.serialize_field("format", &self.format())?;
+//     state.serialize_field("endianness", &self.endianness())?;
+//     state.serialize_field("request_size", &self.request_size())?;
+//     state.serialize_field("stacked", &self.stacked())?;
+//     state.serialize_field("clamp_policy", &self.clamp_policy())?;
+//     state.serialize_field("base_address", &self.base_address())?;
+//
+//     let mut texture_size: [u8; 4] = self.texture_size().to_le_bytes();
+//
+//     match &self.dimension() {
+//       Dimension::OneD => {
+//         state.serialize_field("texture_size", &TextureSize1D::from_bytes(texture_size))?
+//       }
+//       Dimension::TwoDOrStacked => {
+//         state.serialize_field("texture_size", &TextureSize2D::from_bytes(texture_size))?
+//       }
+//       Dimension::ThreeD => {
+//         state.serialize_field("texture_size", &TextureSize3D::from_bytes(texture_size))?
+//       }
+//       Dimension::CubeMap => {
+//         state.serialize_field("texture_size", &TextureSizeStack::from_bytes(texture_size))?
+//       }
+//     };
+//
+//     state.serialize_field("num_format", &self.num_format())?;
+//     state.serialize_field("swizzle_x", &self.swizzle_x())?;
+//     state.serialize_field("swizzle_y", &self.swizzle_y())?;
+//     state.serialize_field("swizzle_z", &self.swizzle_z())?;
+//     state.serialize_field("swizzle_w", &self.swizzle_w())?;
+//     state.serialize_field("exp_adjust", &self.exp_adjust())?;
+//     state.serialize_field("mag_filter", &self.mag_filter())?;
+//     state.serialize_field("min_filter", &self.min_filter())?;
+//     state.serialize_field("mip_filter", &self.mip_filter())?;
+//     state.serialize_field("aniso_filter", &self.aniso_filter())?;
+//     state.serialize_field("arbitrary_filter", &self.arbitrary_filter())?;
+//     state.serialize_field("border_size", &self.border_size())?;
+//     state.serialize_field("vol_mag_filter", &self.vol_mag_filter())?;
+//     state.serialize_field("vol_min_filter", &self.vol_min_filter())?;
+//     state.serialize_field("min_mip_level", &self.min_mip_level())?;
+//     state.serialize_field("max_mip_level", &self.max_mip_level())?;
+//     state.serialize_field("mag_aniso_walk", &self.mag_aniso_walk())?;
+//     state.serialize_field("min_aniso_walk", &self.min_aniso_walk())?;
+//     state.serialize_field("lodbias", &self.lodbias())?;
+//     state.serialize_field("grad_exp_adjust_h", &self.grad_exp_adjust_h())?;
+//     state.serialize_field("grad_exp_adjust_v", &self.grad_exp_adjust_v())?;
+//     state.serialize_field("border_color", &self.border_color())?;
+//     state.serialize_field("force_bc_w_to_max", &self.force_bc_w_to_max())?;
+//     state.serialize_field("tri_clamp", &self.tri_clamp())?;
+//     state.serialize_field("aniso_bias", &self.aniso_bias())?;
+//     state.serialize_field("dimension", &self.dimension())?;
+//     state.serialize_field("packed_mips", &self.packed_mips())?;
+//     state.serialize_field("mip_address", &self.mip_address())?;
+//
+//     state.end()
+//   }
+// }
+//
+// impl Serialize for TextureSize1D {
+//   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+//     let mut state = serializer.serialize_struct("GpuTextureSize1D", 1)?;
+//
+//     state.serialize_field("width", &self.width())?;
+//
+//     state.end()
+//   }
+// }
+//
+// impl Serialize for TextureSize2D {
+//   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+//     let mut state = serializer.serialize_struct("GpuTextureSize2D", 1)?;
+//
+//     state.serialize_field("width", &self.width())?;
+//     state.serialize_field("height", &self.height())?;
+//     state.serialize_field("stack_depth", &self.stack_depth())?;
+//
+//     state.end()
+//   }
+// }
+//
+// impl Serialize for TextureSize3D {
+//   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+//     let mut state = serializer.serialize_struct("GpuTextureSize3D", 1)?;
+//
+//     state.serialize_field("width", &self.width())?;
+//     state.serialize_field("height", &self.height())?;
+//     state.serialize_field("depth", &self.depth())?;
+//
+//     state.end()
+//   }
+// }
+//
+// impl Serialize for TextureSizeStack {
+//   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+//     let mut state = serializer.serialize_struct("GpuTextureSizeStack", 1)?;
+//
+//     state.serialize_field("width", &self.width())?;
+//     state.serialize_field("height", &self.height())?;
+//     state.serialize_field("depth", &self.depth())?;
+//
+//     state.end()
+//   }
+// }

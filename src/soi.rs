@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::Path;
 
 use binrw::{BinRead, BinReaderExt, BinResult};
 
@@ -81,6 +81,26 @@ pub(crate) struct Soi {
   // motion_packs: Vec<MotionPack>,
 }
 
-pub(crate) fn read_soi(path: PathBuf) -> BinResult<Soi> {
-  File::open(path)?.read_be()
+impl Soi {
+  pub fn read(path: &Path) -> BinResult<Self> {
+    let mut file = File::open(path)?;
+    Self::read_file(&mut file)
+  }
+
+  pub fn read_file(file: &mut File) -> BinResult<Self> {
+    file.read_be()
+  }
+
+  pub fn find_texture_header(&self, section_id: u32, component_id: u32) -> Option<&TextureHeader> {
+    for texture in &self.streaming_textures {
+      let model_info = &texture.model_info;
+      if model_info.section_id == section_id as i32
+        && model_info.component_id == component_id as i32
+      {
+        return Some(&texture.header);
+      }
+    }
+
+    None
+  }
 }
