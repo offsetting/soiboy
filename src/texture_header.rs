@@ -318,7 +318,7 @@ pub(crate) struct TextureMetadata {
 }
 
 #[derive(BinRead, BinWrite, Debug)]
-pub(crate) struct TextureHeader {
+pub struct TextureHeader {
   pub(crate) common: u32,
   pub(crate) reference_count: u32,
   pub(crate) fence: u32,

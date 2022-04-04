@@ -1,4 +1,5 @@
 use std::path::Path;
+use crate::ComponentKind::Texture;
 
 pub use crate::soi::*;
 pub use crate::str::*;

@@ -63,7 +63,7 @@ pub(crate) struct StreamingTexture {
 }
 
 #[derive(BinRead, Debug)]
-pub(crate) struct Soi {
+pub struct Soi {
   pub(crate) header: Header,
 
   #[br(count = header.uncached_pages)]
