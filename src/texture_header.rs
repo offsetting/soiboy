@@ -319,14 +319,14 @@ pub(crate) struct TextureMetadata {
 
 #[derive(BinRead, BinWrite, Debug)]
 pub struct TextureHeader {
-  pub(crate) common: u32,
-  pub(crate) reference_count: u32,
-  pub(crate) fence: u32,
-  pub(crate) read_fence: u32,
-  pub(crate) identifier: u32,
-  pub(crate) base_flush: u32,
-  pub(crate) mip_flush: u32,
-  pub(crate) metadata: [u8; 24],
+  pub common: u32,
+  pub reference_count: u32,
+  pub fence: u32,
+  pub read_fence: u32,
+  pub identifier: u32,
+  pub base_flush: u32,
+  pub mip_flush: u32,
+  pub metadata: [u8; 24],
 }
 
 impl TextureHeader {

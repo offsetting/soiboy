@@ -11,22 +11,22 @@ pub(crate) enum StreamingMode {
   Unknown = -1,
   _1D,
   _2D,
-  Manuel,
+  Manual,
 }
 
 #[derive(BinRead, Debug)]
-pub(crate) struct Header {
-  pub(crate) version: i32,
+pub struct Header {
+  pub version: i32,
 
-  pub(crate) flags: i32,
-  pub(crate) sections: i32,
-  pub(crate) collision_models: i32,
-  pub(crate) renderable_models: i32,
-  pub(crate) motion_packs: i32,
-  pub(crate) streaming_textures: i32,
-  pub(crate) static_textures: i32,
-  pub(crate) uncached_pages: i32,
-  pub(crate) cached_pages: i32,
+  pub flags: i32,
+  pub sections: i32,
+  pub collision_models: i32,
+  pub renderable_models: i32,
+  pub motion_packs: i32,
+  pub streaming_textures: i32,
+  pub static_textures: i32,
+  pub uncached_pages: i32,
+  pub cached_pages: i32,
 
   pub(crate) motion_packs_offset: i32,
   pub(crate) renderable_models_offset: i32,
@@ -39,41 +39,41 @@ pub(crate) struct Header {
 }
 
 #[derive(BinRead, Debug)]
-pub(crate) struct ModelInfo {
-  pub(crate) flags: i32,
-  pub(crate) position: [f32; 4],
-  pub(crate) look_vector: [f32; 4],
-  pub(crate) up_vector: [f32; 4],
-  pub(crate) is_animated: i32,
-  pub(crate) section_id: i32,
-  pub(crate) component_id: i32,
+pub struct ModelInfo {
+  pub flags: i32,
+  pub position: [f32; 4],
+  pub look_vector: [f32; 4],
+  pub up_vector: [f32; 4],
+  pub is_animated: i32,
+  pub section_id: i32,
+  pub component_id: i32,
 
-  pub(crate) name: [char; 260],
+  pub name: [char; 260],
 
   pub(crate) zone: i32,
   pub(crate) parameter_count: i32,
 }
 
 #[derive(BinRead, Debug)]
-pub(crate) struct StreamingTexture {
-  pub(crate) model_info: ModelInfo,
+pub struct StreamingTexture {
+  pub model_info: ModelInfo,
   // might be something, currently only padding
-  pub(crate) padding: u32,
-  pub(crate) header: TextureHeader,
+  pub padding: u32,
+  pub header: TextureHeader,
 }
 
 #[derive(BinRead, Debug)]
 pub struct Soi {
-  pub(crate) header: Header,
+  pub header: Header,
 
   #[br(count = header.uncached_pages)]
-  pub(crate) uncached_page_sizes: Vec<i32>,
+  pub uncached_page_sizes: Vec<i32>,
 
   #[br(count = header.cached_pages)]
-  pub(crate) cached_page_sizes: Vec<i32>,
+  pub cached_page_sizes: Vec<i32>,
 
   #[br(count = header.streaming_textures)]
-  pub(crate) streaming_textures: Vec<StreamingTexture>,
+  pub streaming_textures: Vec<StreamingTexture>,
   // #[br(count = header.static_textures)]
   // static_textures: Vec<StaticTexture>,
 

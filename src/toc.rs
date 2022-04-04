@@ -49,12 +49,12 @@ pub(crate) struct ZlibHeader {
 }
 
 #[derive(BinRead, Debug)]
-pub(crate) struct SectionHeader {
-  pub(crate) name: [char; 260],
+pub struct SectionHeader {
+  pub name: [char; 260],
 
-  pub(crate) total_component_count: i32,
-  pub(crate) uncached_component_count: i32,
-  pub(crate) cached_component_count: i32,
+  pub total_component_count: i32,
+  pub uncached_component_count: i32,
+  pub cached_component_count: i32,
 
   pub(crate) shared_section_offset: i32,
   pub(crate) uncached_page_offset: i32,
@@ -72,24 +72,24 @@ pub(crate) struct SectionHeader {
 }
 
 #[derive(BinRead, Debug)]
-pub(crate) struct ComponentHeader {
-  pub(crate) path: [char; 260],
+pub struct ComponentHeader {
+  pub path: [char; 260],
 
-  pub(crate) instance_id: i32,
-  pub(crate) id: i32,
+  pub instance_id: i32,
+  pub id: i32,
   pub(crate) memory_entry: MemoryEntry,
   pub(crate) kind: ComponentKind,
 }
 
 #[derive(BinRead, Debug)]
 pub struct Section {
-  pub(crate) header: SectionHeader,
+  pub header: SectionHeader,
 
   #[br(count = header.uncached_component_count)]
-  pub(crate) uncached_components: Vec<ComponentHeader>,
+  pub uncached_components: Vec<ComponentHeader>,
 
   #[br(count = header.cached_component_count)]
-  pub(crate) cached_components: Vec<ComponentHeader>,
+  pub cached_components: Vec<ComponentHeader>,
 }
 
 #[derive(Debug)]
