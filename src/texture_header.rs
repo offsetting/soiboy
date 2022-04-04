@@ -6,39 +6,39 @@ use modular_bitfield::{bitfield, specifiers::*, BitfieldSpecifier};
 
 #[bitfield]
 #[derive(Clone, Debug)]
-pub(crate) struct TextureSize1D {
-  pub(crate) width: B24,
+pub struct TextureSize1D {
+  pub width: B24,
   #[skip]
   _padding0: B8,
 }
 
 #[bitfield]
 #[derive(Clone, Debug)]
-pub(crate) struct TextureSize2D {
-  pub(crate) width: B13,
-  pub(crate) height: B13,
-  pub(crate) stack_depth: B6,
+pub struct TextureSize2D {
+  pub width: B13,
+  pub height: B13,
+  pub stack_depth: B6,
 }
 
 #[bitfield]
 #[derive(Clone, Debug)]
-pub(crate) struct TextureSize3D {
-  pub(crate) width: B11,
-  pub(crate) height: B11,
-  pub(crate) depth: B10,
+pub struct TextureSize3D {
+  pub width: B11,
+  pub height: B11,
+  pub depth: B10,
 }
 
 #[bitfield]
 #[derive(Clone, Debug)]
-pub(crate) struct TextureSizeStack {
-  pub(crate) width: B13,
-  pub(crate) height: B13,
-  pub(crate) depth: B6,
+pub struct TextureSizeStack {
+  pub width: B13,
+  pub height: B13,
+  pub depth: B6,
 }
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 6]
-pub(crate) enum TextureFormat {
+pub enum TextureFormat {
   _1Reverse = 0,
   _1 = 1,
   _8 = 2,
@@ -107,14 +107,14 @@ pub(crate) enum TextureFormat {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 1]
-pub(crate) enum NumFormat {
+pub enum NumFormat {
   Fraction = 0,
   Integer = 1,
 }
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
-pub(crate) enum TextureKind {
+pub enum TextureKind {
   InvalidTexture = 0,
   InvalidVertex = 1,
   Texture = 2,
@@ -123,7 +123,7 @@ pub(crate) enum TextureKind {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
-pub(crate) enum TextureSign {
+pub enum TextureSign {
   Unsigned = 0,
   Signed = 1,
   UnsignedBiased = 2,
@@ -132,7 +132,7 @@ pub(crate) enum TextureSign {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 3]
-pub(crate) enum ClampMode {
+pub enum ClampMode {
   Repeat = 0,
   MirroredRepeat = 1,
   ClampToEdge = 2,
@@ -145,7 +145,7 @@ pub(crate) enum ClampMode {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
-pub(crate) enum Endian {
+pub enum Endian {
   None = 0,
   _8in16 = 1,
   _8in32 = 2,
@@ -154,14 +154,14 @@ pub(crate) enum Endian {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
-pub(crate) enum RequestSize {
+pub enum RequestSize {
   _256Bit = 0,
   _512Bit = 1,
 }
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 3]
-pub(crate) enum Swizzle {
+pub enum Swizzle {
   X = 0,
   Y = 1,
   Z = 2,
@@ -173,14 +173,14 @@ pub(crate) enum Swizzle {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 1]
-pub(crate) enum ClampPolicy {
+pub enum ClampPolicy {
   D3D = 0,
   OpenGL = 1,
 }
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
-pub(crate) enum Dimension {
+pub enum Dimension {
   OneD = 0,
   TwoDOrStacked = 1,
   ThreeD = 2,
@@ -189,7 +189,7 @@ pub(crate) enum Dimension {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
-pub(crate) enum BorderColor {
+pub enum BorderColor {
   AgbrBlack = 0,
   AgbrWhite = 1,
   AcbycrBlack = 2,
@@ -198,7 +198,7 @@ pub(crate) enum BorderColor {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
-pub(crate) enum TriClamp {
+pub enum TriClamp {
   Normal = 0,
   OneSixth = 1,
   OneFourth = 2,
@@ -207,14 +207,14 @@ pub(crate) enum TriClamp {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 1]
-pub(crate) enum MinMagFilter {
+pub enum MinMagFilter {
   Point = 0,
   Linear = 1,
 }
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 2]
-pub(crate) enum MipFilter {
+pub enum MipFilter {
   Point = 0,
   Linear = 1,
   Basemap = 2,
@@ -223,7 +223,7 @@ pub(crate) enum MipFilter {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 3]
-pub(crate) enum AnisoFilter {
+pub enum AnisoFilter {
   Disabled = 0,
   Max1To1 = 1,
   Max2To1 = 2,
@@ -235,14 +235,14 @@ pub(crate) enum AnisoFilter {
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 1]
-pub(crate) enum SignedRepeatingFractionMode {
+pub enum SignedRepeatingFractionMode {
   ZeroClampMinusOne = 0,
   NoZero = 1,
 }
 
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 3]
-pub(crate) enum ArbitraryFilter {
+pub enum ArbitraryFilter {
   _2x4Sym = 0,
   _2x4Asym = 1,
   _4x2Sym = 2,
@@ -254,67 +254,67 @@ pub(crate) enum ArbitraryFilter {
 
 #[bitfield]
 #[derive(Debug)]
-pub(crate) struct TextureMetadata {
-  pub(crate) kind: TextureKind,
-  pub(crate) sign_x: TextureSign,
-  pub(crate) sign_y: TextureSign,
-  pub(crate) sign_z: TextureSign,
-  pub(crate) sign_w: TextureSign,
-  pub(crate) clamp_x: ClampMode,
-  pub(crate) clamp_y: ClampMode,
-  pub(crate) clamp_z: ClampMode,
-  pub(crate) signed_repeating_fraction: SignedRepeatingFractionMode,
-  pub(crate) dim_tbd: B2,
+pub struct TextureMetadata {
+  pub kind: TextureKind,
+  pub sign_x: TextureSign,
+  pub sign_y: TextureSign,
+  pub sign_z: TextureSign,
+  pub sign_w: TextureSign,
+  pub clamp_x: ClampMode,
+  pub clamp_y: ClampMode,
+  pub clamp_z: ClampMode,
+  pub signed_repeating_fraction: SignedRepeatingFractionMode,
+  pub dim_tbd: B2,
   // u32
-  pub(crate) pitch: B9,
+  pub pitch: B9,
   // u32
-  pub(crate) tiled: bool,
-  pub(crate) format: TextureFormat,
-  pub(crate) endianness: Endian,
-  pub(crate) request_size: RequestSize,
-  pub(crate) stacked: bool,
-  pub(crate) clamp_policy: ClampPolicy,
-  pub(crate) base_address: B20,
+  pub tiled: bool,
+  pub format: TextureFormat,
+  pub endianness: Endian,
+  pub request_size: RequestSize,
+  pub stacked: bool,
+  pub clamp_policy: ClampPolicy,
+  pub base_address: B20,
   // u32
-  pub(crate) texture_size: u32,
-  pub(crate) num_format: NumFormat,
-  pub(crate) swizzle_x: Swizzle,
-  pub(crate) swizzle_y: Swizzle,
-  pub(crate) swizzle_z: Swizzle,
-  pub(crate) swizzle_w: Swizzle,
-  pub(crate) exp_adjust: B6,
+  pub texture_size: u32,
+  pub num_format: NumFormat,
+  pub swizzle_x: Swizzle,
+  pub swizzle_y: Swizzle,
+  pub swizzle_z: Swizzle,
+  pub swizzle_w: Swizzle,
+  pub exp_adjust: B6,
   // i32
-  pub(crate) mag_filter: MipFilter,
-  pub(crate) min_filter: MipFilter,
-  pub(crate) mip_filter: MipFilter,
-  pub(crate) aniso_filter: AnisoFilter,
-  pub(crate) arbitrary_filter: ArbitraryFilter,
-  pub(crate) border_size: B1,
+  pub mag_filter: MipFilter,
+  pub min_filter: MipFilter,
+  pub mip_filter: MipFilter,
+  pub aniso_filter: AnisoFilter,
+  pub arbitrary_filter: ArbitraryFilter,
+  pub border_size: B1,
   // u32
-  pub(crate) vol_mag_filter: MinMagFilter,
-  pub(crate) vol_min_filter: MinMagFilter,
-  pub(crate) min_mip_level: B4,
+  pub vol_mag_filter: MinMagFilter,
+  pub vol_min_filter: MinMagFilter,
+  pub min_mip_level: B4,
   // u32
-  pub(crate) max_mip_level: B4,
+  pub max_mip_level: B4,
   // u32
-  pub(crate) mag_aniso_walk: B1,
+  pub mag_aniso_walk: B1,
   // u32
-  pub(crate) min_aniso_walk: B1,
+  pub min_aniso_walk: B1,
   // u32
-  pub(crate) lodbias: B10,
+  pub lodbias: B10,
   // i32
-  pub(crate) grad_exp_adjust_h: B5,
+  pub grad_exp_adjust_h: B5,
   // i32
-  pub(crate) grad_exp_adjust_v: B5,
+  pub grad_exp_adjust_v: B5,
   // i32
-  pub(crate) border_color: BorderColor,
-  pub(crate) force_bc_w_to_max: bool,
-  pub(crate) tri_clamp: TriClamp,
-  pub(crate) aniso_bias: B4,
+  pub border_color: BorderColor,
+  pub force_bc_w_to_max: bool,
+  pub tri_clamp: TriClamp,
+  pub aniso_bias: B4,
   // i32
-  pub(crate) dimension: Dimension,
-  pub(crate) packed_mips: bool,
-  pub(crate) mip_address: B20, // u32
+  pub dimension: Dimension,
+  pub packed_mips: bool,
+  pub mip_address: B20, // u32
 }
 
 #[derive(BinRead, BinWrite, Debug)]
@@ -330,7 +330,7 @@ pub struct TextureHeader {
 }
 
 impl TextureHeader {
-  pub(crate) fn metadata(&self) -> TextureMetadata {
+  pub fn metadata(&self) -> TextureMetadata {
     let mut metadata = self.metadata;
 
     // reversing ever u32 independently

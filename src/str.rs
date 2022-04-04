@@ -5,9 +5,9 @@ use std::path::Path;
 use binrw::io;
 use flate2::read::ZlibDecoder;
 
+use crate::{ComponentHeader, Section};
 use crate::toc::ComponentKind;
 use crate::utils::clean_string;
-use crate::{ComponentHeader, Section};
 
 #[derive(Debug)]
 pub struct SectionData {
@@ -43,38 +43,41 @@ impl Str {
     let header = &section.header;
     let zlib = &header.zlib_header;
 
-    self
-      .file
-      .seek(SeekFrom::Start(header.memory_entry.offset as u64))?;
+    let section_offset = header.memory_entry.offset as u64;
+    self.file.seek(SeekFrom::Start(section_offset))?;
 
-    let uncached_data = self.decode_zlib_data(&zlib.uncached_sizes)?;
-    let uncached = extract_components(&section.uncached_components, uncached_data);
+    let uncached = {
+      let data = self.decode_zlib_data(header.uncached_data_size as usize, &zlib.uncached_sizes)?;
+      extract_components(&section.uncached_components, data)
+    };
 
-    let cached_data = self.decode_zlib_data(&zlib.cached_sizes)?;
-    let cached = extract_components(&section.cached_components, cached_data);
+    let cached = {
+      let data = self.decode_zlib_data(header.cached_data_size as usize, &zlib.cached_sizes)?;
+      extract_components(&section.cached_components, data)
+    };
 
     Ok(SectionData { uncached, cached })
   }
 
-  pub fn decode_zlib_data(&mut self, sizes: &[i32]) -> io::Result<Vec<u8>> {
-    let mut whole_section = Vec::new();
+  pub fn decode_zlib_data(&mut self, output_size: usize, input_sizes: &[i32]) -> io::Result<Vec<u8>> {
+    let mut output = Vec::with_capacity(output_size);
 
-    for size in sizes {
+    for size in input_sizes {
       // reading compressed chunk
       let mut buf = vec![0; *size as usize];
       self.file.read_exact(&mut buf)?;
 
       // decompressing chunk and appending to merged vector
       let mut decoder = ZlibDecoder::new(&buf[..]);
-      decoder.read_to_end(&mut whole_section)?;
+      decoder.read_to_end(&mut output)?;
     }
 
-    Ok(whole_section)
+    Ok(output)
   }
 }
 
 fn extract_components(headers: &[ComponentHeader], data: Vec<u8>) -> Vec<ComponentData> {
-  let mut components = Vec::new();
+  let mut components = Vec::with_capacity(headers.len());
 
   for header in headers {
     let start = header.memory_entry.offset as usize;
@@ -82,7 +85,7 @@ fn extract_components(headers: &[ComponentHeader], data: Vec<u8>) -> Vec<Compone
 
     let component = ComponentData {
       id: header.id as u32,
-      path: clean_string(&header.path).iter().collect(),
+      path: clean_string(&header.path),
       instance_id: header.instance_id as u32,
       kind: header.kind,
       // copy data for each component

@@ -7,7 +7,7 @@ use crate::texture_header::TextureHeader;
 
 #[derive(BinRead, PartialEq, Debug)]
 #[br(repr = i32)]
-pub(crate) enum StreamingMode {
+enum StreamingMode {
   Unknown = -1,
   _1D,
   _2D,
@@ -15,65 +15,65 @@ pub(crate) enum StreamingMode {
 }
 
 #[derive(BinRead, Debug)]
-pub struct Header {
-  pub version: i32,
+struct Header {
+  version: i32,
 
-  pub flags: i32,
-  pub sections: i32,
-  pub collision_models: i32,
-  pub renderable_models: i32,
-  pub motion_packs: i32,
-  pub streaming_textures: i32,
-  pub static_textures: i32,
-  pub uncached_pages: i32,
-  pub cached_pages: i32,
+  flags: i32,
+  sections: i32,
+  collision_models: i32,
+  renderable_models: i32,
+  motion_packs: i32,
+  streaming_textures: i32,
+  static_textures: i32,
+  uncached_pages: i32,
+  cached_pages: i32,
 
-  pub(crate) motion_packs_offset: i32,
-  pub(crate) renderable_models_offset: i32,
-  pub(crate) collision_models_offset: i32,
-  pub(crate) textures_offset: i32,
-  pub(crate) collision_grids_offset: i32,
+  motion_packs_offset: i32,
+  renderable_models_offset: i32,
+  collision_models_offset: i32,
+  textures_offset: i32,
+  collision_grids_offset: i32,
 
-  pub(crate) streaming_mode: StreamingMode,
-  pub(crate) reserved: [u8; 16],
+  streaming_mode: StreamingMode,
+  reserved: [u8; 16],
 }
 
 #[derive(BinRead, Debug)]
-pub struct ModelInfo {
-  pub flags: i32,
-  pub position: [f32; 4],
-  pub look_vector: [f32; 4],
-  pub up_vector: [f32; 4],
-  pub is_animated: i32,
-  pub section_id: i32,
-  pub component_id: i32,
+struct ModelInfo {
+  flags: i32,
+  position: [f32; 4],
+  look_vector: [f32; 4],
+  up_vector: [f32; 4],
+  is_animated: i32,
+  section_id: i32,
+  component_id: i32,
 
-  pub name: [char; 260],
+  name: [char; 260],
 
-  pub(crate) zone: i32,
-  pub(crate) parameter_count: i32,
+  zone: i32,
+  parameter_count: i32,
 }
 
 #[derive(BinRead, Debug)]
-pub struct StreamingTexture {
-  pub model_info: ModelInfo,
+struct StreamingTexture {
+  model_info: ModelInfo,
   // might be something, currently only padding
-  pub padding: u32,
-  pub header: TextureHeader,
+  padding: u32,
+  header: TextureHeader,
 }
 
 #[derive(BinRead, Debug)]
 pub struct Soi {
-  pub header: Header,
+  header: Header,
 
   #[br(count = header.uncached_pages)]
-  pub uncached_page_sizes: Vec<i32>,
+  uncached_page_sizes: Vec<i32>,
 
   #[br(count = header.cached_pages)]
-  pub cached_page_sizes: Vec<i32>,
+  cached_page_sizes: Vec<i32>,
 
   #[br(count = header.streaming_textures)]
-  pub streaming_textures: Vec<StreamingTexture>,
+  streaming_textures: Vec<StreamingTexture>,
   // #[br(count = header.static_textures)]
   // static_textures: Vec<StaticTexture>,
 
