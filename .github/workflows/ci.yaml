@@ -40,7 +40,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.channel == 'stable' }}
         with:
-          name: x-flipper-360_${{ matrix.os }}
+          name: soiboy_${{ matrix.os }}
           path: |
-            target/release/x-flipper-360
-            target/release/x-flipper-360.exe
+            target/release/soiboy*
+            target/release/libsoiboy*
