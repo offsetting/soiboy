@@ -3,8 +3,6 @@ use std::path::Path;
 
 use binrw::{BinRead, BinReaderExt, BinResult};
 
-use crate::texture_header::TextureHeader;
-
 #[derive(BinRead, PartialEq, Debug)]
 #[br(repr = i32)]
 enum StreamingMode {
@@ -55,15 +53,15 @@ struct ModelInfo {
 }
 
 #[derive(BinRead, Debug)]
-struct StreamingTexture {
+struct StreamingTexture<TH: BinRead<Args=()>> {
   model_info: ModelInfo,
   // might be something, currently only padding
   padding: u32,
-  header: TextureHeader,
+  header: TH,
 }
 
 #[derive(BinRead, Debug)]
-pub struct Soi {
+pub struct Soi<TH: BinRead<Args=()>> {
   header: Header,
 
   #[br(count = header.uncached_pages)]
@@ -73,7 +71,8 @@ pub struct Soi {
   cached_page_sizes: Vec<i32>,
 
   #[br(count = header.streaming_textures)]
-  streaming_textures: Vec<StreamingTexture>,
+  streaming_textures: Vec<StreamingTexture<TH>>,
+
   // #[br(count = header.static_textures)]
   // static_textures: Vec<StaticTexture>,
 
@@ -81,7 +80,7 @@ pub struct Soi {
   // motion_packs: Vec<MotionPack>,
 }
 
-impl Soi {
+impl<TH: BinRead<Args=()>> Soi<TH> {
   pub fn read(path: &Path) -> BinResult<Self> {
     let mut file = File::open(path)?;
     Self::read_file(&mut file)
@@ -91,7 +90,7 @@ impl Soi {
     file.read_be()
   }
 
-  pub fn find_texture_header(&self, section_id: u32, component_id: u32) -> Option<&TextureHeader> {
+  pub fn find_texture_header(&self, section_id: u32, component_id: u32) -> Option<&TH> {
     for texture in &self.streaming_textures {
       let model_info = &texture.model_info;
       if model_info.section_id == section_id as i32
