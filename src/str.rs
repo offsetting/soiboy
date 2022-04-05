@@ -5,9 +5,9 @@ use std::path::Path;
 use binrw::io;
 use flate2::read::ZlibDecoder;
 
-use crate::{ComponentHeader, Section};
 use crate::toc::ComponentKind;
 use crate::utils::clean_string;
+use crate::{ComponentHeader, Section};
 
 #[derive(Debug)]
 pub struct SectionData {
@@ -59,7 +59,11 @@ impl Str {
     Ok(SectionData { uncached, cached })
   }
 
-  pub fn decode_zlib_data(&mut self, output_size: usize, input_sizes: &[i32]) -> io::Result<Vec<u8>> {
+  pub fn decode_zlib_data(
+    &mut self,
+    output_size: usize,
+    input_sizes: &[i32],
+  ) -> io::Result<Vec<u8>> {
     let mut output = Vec::with_capacity(output_size);
 
     for size in input_sizes {

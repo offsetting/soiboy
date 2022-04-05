@@ -53,7 +53,7 @@ struct ModelInfo {
 }
 
 #[derive(BinRead, Debug)]
-struct StreamingTexture<TH: BinRead<Args=()>> {
+struct StreamingTexture<TH: BinRead<Args = ()>> {
   model_info: ModelInfo,
   // might be something, currently only padding
   padding: u32,
@@ -61,7 +61,7 @@ struct StreamingTexture<TH: BinRead<Args=()>> {
 }
 
 #[derive(BinRead, Debug)]
-pub struct Soi<TH: BinRead<Args=()>> {
+pub struct Soi<TH: BinRead<Args = ()>> {
   header: Header,
 
   #[br(count = header.uncached_pages)]
@@ -72,7 +72,6 @@ pub struct Soi<TH: BinRead<Args=()>> {
 
   #[br(count = header.streaming_textures)]
   streaming_textures: Vec<StreamingTexture<TH>>,
-
   // #[br(count = header.static_textures)]
   // static_textures: Vec<StaticTexture>,
 
@@ -80,7 +79,7 @@ pub struct Soi<TH: BinRead<Args=()>> {
   // motion_packs: Vec<MotionPack>,
 }
 
-impl<TH: BinRead<Args=()>> Soi<TH> {
+impl<TH: BinRead<Args = ()>> Soi<TH> {
   pub fn read(path: &Path) -> BinResult<Self> {
     let mut file = File::open(path)?;
     Self::read_file(&mut file)
