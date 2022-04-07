@@ -76,7 +76,7 @@ pub struct SectionHeader {
 
 #[derive(BinRead, Debug)]
 pub struct ComponentHeader {
-  path: [char; 260],
+  path_array: [char; 260],
 
   pub instance_id: i32,
   pub id: i32,
@@ -143,6 +143,6 @@ impl Toc {
 
 impl ComponentHeader {
   pub fn path(&self) -> String {
-    clean_path(&self.path)
+    clean_path(&self.path_array)
   }
 }

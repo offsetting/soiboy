@@ -89,7 +89,7 @@ fn extract_components(headers: &[ComponentHeader], data: Vec<u8>) -> Vec<Compone
 
     let component = ComponentData {
       id: header.id as u32,
-      path: clean_path(&header.path),
+      path: header.path(),
       instance_id: header.instance_id as u32,
       kind: header.kind,
       // copy data for each component

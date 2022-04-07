@@ -10,7 +10,7 @@ pub fn clean_path(input: &[char]) -> String {
       return output;
     }
 
-    if x == &BACKSLASH {
+    if c == &BACKSLASH {
       output.push(SLASH);
     } else {
       output.push(*c)
