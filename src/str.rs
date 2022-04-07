@@ -6,8 +6,7 @@ use binrw::io;
 use flate2::read::ZlibDecoder;
 
 use crate::toc::ComponentKind;
-use crate::utils::clean_string;
-use crate::{ComponentHeader, Section};
+use crate::{ComponentHeader, Section, SectionHeader};
 
 #[derive(Debug)]
 pub struct SectionData {
@@ -89,7 +88,7 @@ fn extract_components(headers: &[ComponentHeader], data: Vec<u8>) -> Vec<Compone
 
     let component = ComponentData {
       id: header.id as u32,
-      path: clean_string(&header.path),
+      path: header.path(),
       instance_id: header.instance_id as u32,
       kind: header.kind,
       // copy data for each component
