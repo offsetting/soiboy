@@ -4,6 +4,9 @@ use std::path::Path;
 
 use binrw::{BinRead, BinReaderExt, BinResult};
 
+use crate::Str;
+use crate::utils::clean_path;
+
 #[derive(BinRead, Debug)]
 pub(crate) struct Bounding {
   pub(crate) min_x: f32,
@@ -73,12 +76,12 @@ pub struct SectionHeader {
 
 #[derive(BinRead, Debug)]
 pub struct ComponentHeader {
-  pub path: [char; 260],
+  path: [char; 260],
 
   pub instance_id: i32,
   pub id: i32,
   pub(crate) memory_entry: MemoryEntry,
-  pub(crate) kind: ComponentKind,
+  pub kind: ComponentKind,
 }
 
 #[derive(BinRead, Debug)]
@@ -116,7 +119,7 @@ impl Toc {
     Ok(Self { sections })
   }
 
-  pub fn get_section(&self, id: u32) -> Option<&Section> {
+  pub fn find_section(&self, id: u32) -> Option<&Section> {
     self.sections.get(id as usize)
   }
 
@@ -135,5 +138,11 @@ impl Toc {
     }
 
     None
+  }
+}
+
+impl ComponentHeader {
+  pub fn path(&self) -> String {
+    clean_path(&self.path)
   }
 }
