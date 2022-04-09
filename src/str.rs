@@ -6,7 +6,7 @@ use binrw::io;
 use flate2::read::ZlibDecoder;
 
 use crate::toc::ComponentKind;
-use crate::{ComponentHeader, Section, SectionHeader};
+use crate::{ComponentHeader, Section};
 
 #[derive(Debug)]
 pub struct SectionData {

@@ -1,10 +1,9 @@
-use std::fs::{create_dir_all, File};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use x_flipper_360::{Config, Format, TextureFormat, TextureHeader, TextureSign, TextureSize2D};
+use x_flipper_360::{TextureHeader, TextureSign, TextureSize2D};
 
-use crate::{ComponentData, Soi, SoiSoup, Str, Toc};
 use crate::ComponentKind::Texture;
+use crate::{ComponentData, SoiSoup, Str};
 
 #[test]
 fn extract() {
@@ -28,11 +27,7 @@ fn extract() {
   }
 }
 
-fn process_component(
-  soup: &SoiSoup<TextureHeader>,
-  section_id: u32,
-  component: ComponentData,
-) {
+fn process_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: ComponentData) {
   if component.kind != Texture {
     return;
   }

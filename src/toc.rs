@@ -84,7 +84,7 @@ pub struct ComponentHeader {
 }
 
 #[derive(BinRead, Debug)]
-pub struct Section{
+pub struct Section {
   pub header: SectionHeader,
 
   #[br(count = header.uncached_component_count)]

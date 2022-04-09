@@ -1,9 +1,8 @@
-use std::io;
 use std::path::Path;
 
 use binrw::{BinRead, BinResult};
 
-use crate::{ComponentData, ComponentHeader, Section, SectionData, SectionHeader, Soi, Toc};
+use crate::{ComponentHeader, Section, Soi, Toc};
 
 pub struct SoiSoup<TH: BinRead<Args=()>> {
   toc: Toc,
@@ -38,6 +37,16 @@ impl<TH: BinRead<Args=()>> SoiSoup<TH> {
     }
 
     components
+  }
+
+  pub fn component_count(&self) -> u32 {
+    let mut sum = 0;
+
+    for section in &self.toc.sections {
+      sum += section.header.total_component_count;
+    }
+
+    sum as u32
   }
 
   pub fn find_texture_header(
