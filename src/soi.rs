@@ -97,11 +97,11 @@ pub struct Soi<TH: BinRead<Args = ()>> {
   #[br(count = header.motion_packs)]
   motion_packs: Vec<StreamingMotionPack>,
 
-  //#[br(if(header.flags & 64 == 1))]
-  //collision_grid_info: StreamingCollisionGridInfo,
+  // #[br(if(header.flags & 64 == 1))]
+  // collision_grid_info: StreamingCollisionGridInfo,
   #[br(count = header.renderable_models)]
   renderable_models: Vec<StreamingRenderableModel>,
-  
+
   #[br(count = header.collision_models)]
   collision_models: Vec<StreamingCollisionModel>,
 }
@@ -153,6 +153,23 @@ impl<TH: BinRead<Args = ()>> Soi<TH> {
         && model_info.component_id == component_id as i32
       {
         return Some(&motion_pack.header);
+      }
+    }
+
+    None
+  }
+
+  pub fn find_collision_model(
+    &self,
+    section_id: u32,
+    component_id: u32,
+  ) -> Option<&CollisionModel> {
+    for collision_model in &self.collision_models {
+      let model_info = &collision_model.model_info;
+      if model_info.section_id == section_id as i32
+        && model_info.component_id == component_id as i32
+      {
+        return Some(&collision_model.collision_model);
       }
     }
 

@@ -2,7 +2,9 @@ use std::path::Path;
 
 use binrw::{BinRead, BinResult};
 
-use crate::{ComponentHeader, Section, Soi, StreamingMotionPackHeader, Toc, XNGHeader};
+use crate::{
+  CollisionModel, ComponentHeader, Section, Soi, StreamingMotionPackHeader, Toc, XNGHeader,
+};
 
 pub struct SoiSoup<TH: BinRead<Args = ()>> {
   toc: Toc,
@@ -94,6 +96,20 @@ impl<TH: BinRead<Args = ()>> SoiSoup<TH> {
 
     let (section_id, component_id) = self.toc.find_ids(instance_id)?;
     self.soi.find_motion_pack(section_id, component_id)
+  }
+
+  pub fn find_collision_model(
+    &self,
+    section_id: u32,
+    component_id: u32,
+    instance_id: u32,
+  ) -> Option<&CollisionModel> {
+    if let Some(header) = self.soi.find_collision_model(section_id, component_id) {
+      return Some(header);
+    }
+
+    let (section_id, component_id) = self.toc.find_ids(instance_id)?;
+    self.soi.find_collision_model(section_id, component_id)
   }
 
   pub fn find_model(

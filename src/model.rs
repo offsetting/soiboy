@@ -5,25 +5,25 @@ use binrw::{BinRead, BinResult, BinWrite, BinrwNamedArgs};
 #[derive(Default, BinRead, BinWrite, Debug)]
 #[brw(big)]
 pub struct Vector4 {
-  x: f32,
-  y: f32,
-  z: f32,
-  w: f32,
+  pub x: f32,
+  pub y: f32,
+  pub z: f32,
+  pub w: f32,
 }
 
 #[derive(Default, BinRead, BinWrite, Debug)]
 #[brw(big)]
 pub struct Vector3 {
-  x: f32,
-  y: f32,
-  z: f32,
+  pub x: f32,
+  pub y: f32,
+  pub z: f32,
 }
 
 #[derive(Default, BinRead, BinWrite, Debug)]
 #[brw(big)]
 pub struct Vector2 {
-  x: f32,
-  y: f32,
+  pub x: f32,
+  pub y: f32,
 }
 
 #[derive(BinRead, BinWrite, Debug)]

@@ -5,7 +5,7 @@ use binrw::{BinWrite, WriteOptions};
 use x_flipper_360::*;
 
 use crate::ComponentKind::{self, Texture};
-use crate::{ComponentData, SoiSoup, Str, XNGHeaderArgs};
+use crate::{CollisionModelArgs, ComponentData, SoiSoup, Str, XNGHeaderArgs};
 
 #[test]
 fn extract() {
@@ -53,38 +53,47 @@ fn process_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: 
     let path = PathBuf::from(format!("D:\\GigaLeak\\asdjkl\\{}.xng", component.path));
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     let mut out = std::fs::File::create(path).unwrap();
-    let op = WriteOptions::new(binrw::Endian::Big);
-    println!(
-      "{}, {}, {}, {}, {}",
-      component.path,
-      component.data.len(),
-      header.mesh_names.len(),
-      header.num_lod,
-      header.lods[0].num_meshes
-    );
-    header.write_options(
-      &mut out,
-      &op,
-      XNGHeaderArgs {
-        streaming_data: component.data,
-      },
-    );
+    let options = WriteOptions::new(binrw::Endian::Big);
+    header
+      .write_options(
+        &mut out,
+        &options,
+        XNGHeaderArgs {
+          streaming_data: component.data.clone(),
+        },
+      )
+      .unwrap();
+  }
 
-    // out.write_all(&component.data);
+  if component.kind == ComponentKind::CollisionModel {
+    let header = soup
+      .find_collision_model(section_id, component.id, component.instance_id)
+      .unwrap();
+
+    let path = PathBuf::from(format!("D:\\GigaLeak\\asdjkl\\{}.gol", component.path));
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut out = std::fs::File::create(path).unwrap();
+    let options = WriteOptions::new(binrw::Endian::Big);
+    header
+      .write_options(
+        &mut out,
+        &options,
+        CollisionModelArgs {
+          streaming_data: component.data.clone(),
+        },
+      )
+      .unwrap();
   }
 
   if component.kind == ComponentKind::Texture {
     match soup.find_texture_header(section_id, component.id, component.instance_id) {
       Some(header) => {
         let metadata = header.metadata();
-        println!("{} {:?}", component.path, metadata.format());
 
         match metadata.format() {
           TextureFormat::Dxt1 => {}
           TextureFormat::Dxt4_5 => {}
           _ => {
-            println!("{} {:?}", component.path, metadata.format());
-
             let texture_size: TextureSize2D =
               TextureSize2D::from_bytes(metadata.texture_size().to_le_bytes());
 
