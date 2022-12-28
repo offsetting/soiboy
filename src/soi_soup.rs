@@ -2,14 +2,14 @@ use std::path::Path;
 
 use binrw::{BinRead, BinResult};
 
-use crate::{ComponentHeader, Section, Soi, Toc};
+use crate::{ComponentHeader, Section, Soi, StreamingMotionPackHeader, Toc, XNGHeader};
 
-pub struct SoiSoup<TH: BinRead<Args=()>> {
+pub struct SoiSoup<TH: BinRead<Args = ()>> {
   toc: Toc,
   soi: Soi<TH>,
 }
 
-impl<TH: BinRead<Args=()>> SoiSoup<TH> {
+impl<TH: BinRead<Args = ()>> SoiSoup<TH> {
   pub fn cook(toc_path: &Path, soi_path: &Path) -> BinResult<Self> {
     let toc = Toc::read(toc_path)?;
     let soi = Soi::read(soi_path)?;
@@ -49,6 +49,25 @@ impl<TH: BinRead<Args=()>> SoiSoup<TH> {
     sum as u32
   }
 
+  pub fn find_static_texture_header(
+    &self,
+    section_id: u32,
+    component_id: u32,
+    instance_id: u32,
+  ) -> Option<&Vec<u8>> {
+    if let Some(header) = self
+      .soi
+      .find_static_texture_header(section_id, component_id)
+    {
+      return Some(header);
+    }
+
+    let (section_id, component_id) = self.toc.find_ids(instance_id)?;
+    self
+      .soi
+      .find_static_texture_header(section_id, component_id)
+  }
+
   pub fn find_texture_header(
     &self,
     section_id: u32,
@@ -61,5 +80,33 @@ impl<TH: BinRead<Args=()>> SoiSoup<TH> {
 
     let (section_id, component_id) = self.toc.find_ids(instance_id)?;
     self.soi.find_texture_header(section_id, component_id)
+  }
+
+  pub fn find_motion_pack(
+    &self,
+    section_id: u32,
+    component_id: u32,
+    instance_id: u32,
+  ) -> Option<&StreamingMotionPackHeader> {
+    if let Some(header) = self.soi.find_motion_pack(section_id, component_id) {
+      return Some(header);
+    }
+
+    let (section_id, component_id) = self.toc.find_ids(instance_id)?;
+    self.soi.find_motion_pack(section_id, component_id)
+  }
+
+  pub fn find_model(
+    &self,
+    section_id: u32,
+    component_id: u32,
+    instance_id: u32,
+  ) -> Option<&XNGHeader> {
+    if let Some(header) = self.soi.find_model(section_id, component_id) {
+      return Some(header);
+    }
+
+    let (section_id, component_id) = self.toc.find_ids(instance_id)?;
+    self.soi.find_model(section_id, component_id)
   }
 }

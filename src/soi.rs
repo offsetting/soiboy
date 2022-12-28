@@ -1,7 +1,11 @@
 use std::fs::File;
 use std::path::Path;
 
-use binrw::{BinRead, BinReaderExt, BinResult};
+use binrw::{io::SeekFrom, BinRead, BinReaderExt, BinResult, BinWrite};
+
+use crate::collision::*;
+use crate::model::*;
+use crate::motion::*;
 
 #[derive(BinRead, PartialEq, Debug)]
 #[br(repr = i32)]
@@ -37,7 +41,7 @@ struct Header {
 }
 
 #[derive(BinRead, Debug)]
-struct ModelInfo {
+pub struct ModelInfo {
   flags: i32,
   position: [f32; 4],
   look_vector: [f32; 4],
@@ -49,15 +53,29 @@ struct ModelInfo {
   name: [char; 260],
 
   zone: i32,
-  parameter_count: i32,
+  pub parameter_count: i32,
+}
+
+#[derive(BinRead, Debug)]
+pub struct StreamingParameter {
+  name: [char; 260],
+  value: [char; 260],
 }
 
 #[derive(BinRead, Debug)]
 struct StreamingTexture<TH: BinRead<Args = ()>> {
   model_info: ModelInfo,
-  // might be something, currently only padding
   padding: u32,
   header: TH,
+}
+
+#[derive(BinRead, Debug)]
+struct StaticTexture {
+  model_info: ModelInfo,
+
+  dds_size: u32,
+  #[br(count = dds_size)]
+  header_file: Vec<u8>,
 }
 
 #[derive(BinRead, Debug)]
@@ -72,11 +90,20 @@ pub struct Soi<TH: BinRead<Args = ()>> {
 
   #[br(count = header.streaming_textures)]
   streaming_textures: Vec<StreamingTexture<TH>>,
-  // #[br(count = header.static_textures)]
-  // static_textures: Vec<StaticTexture>,
 
-  // #[br(count = header.motion_packs)]
-  // motion_packs: Vec<MotionPack>,
+  #[br(count = header.static_textures)]
+  static_textures: Vec<StaticTexture>,
+
+  #[br(count = header.motion_packs)]
+  motion_packs: Vec<StreamingMotionPack>,
+
+  //#[br(if(header.flags & 64 == 1))]
+  //collision_grid_info: StreamingCollisionGridInfo,
+  #[br(count = header.renderable_models)]
+  renderable_models: Vec<StreamingRenderableModel>,
+  
+  #[br(count = header.collision_models)]
+  collision_models: Vec<StreamingCollisionModel>,
 }
 
 impl<TH: BinRead<Args = ()>> Soi<TH> {
@@ -89,6 +116,19 @@ impl<TH: BinRead<Args = ()>> Soi<TH> {
     file.read_be()
   }
 
+  pub fn find_static_texture_header(&self, section_id: u32, component_id: u32) -> Option<&Vec<u8>> {
+    for texture in &self.static_textures {
+      let model_info = &texture.model_info;
+      if model_info.section_id == section_id as i32
+        && model_info.component_id == component_id as i32
+      {
+        return Some(&texture.header_file);
+      }
+    }
+
+    None
+  }
+
   pub fn find_texture_header(&self, section_id: u32, component_id: u32) -> Option<&TH> {
     for texture in &self.streaming_textures {
       let model_info = &texture.model_info;
@@ -96,6 +136,36 @@ impl<TH: BinRead<Args = ()>> Soi<TH> {
         && model_info.component_id == component_id as i32
       {
         return Some(&texture.header);
+      }
+    }
+
+    None
+  }
+
+  pub fn find_motion_pack(
+    &self,
+    section_id: u32,
+    component_id: u32,
+  ) -> Option<&StreamingMotionPackHeader> {
+    for motion_pack in &self.motion_packs {
+      let model_info = &motion_pack.model_info;
+      if model_info.section_id == section_id as i32
+        && model_info.component_id == component_id as i32
+      {
+        return Some(&motion_pack.header);
+      }
+    }
+
+    None
+  }
+
+  pub fn find_model(&self, section_id: u32, component_id: u32) -> Option<&XNGHeader> {
+    for model in &self.renderable_models {
+      let model_info = &model.model_info;
+      if model_info.section_id == section_id as i32
+        && model_info.component_id == component_id as i32
+      {
+        return Some(&model.streaming_model_header);
       }
     }
 
