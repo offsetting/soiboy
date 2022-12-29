@@ -1,4 +1,4 @@
-use binrw::{BinRead, BinReaderExt, BinResult, BinWrite};
+use binrw::{BinRead, BinResult, BinWrite};
 
 #[derive(BinRead, BinWrite, Debug)]
 #[br(big)]

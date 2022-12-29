@@ -6,6 +6,7 @@ use binrw::{io::SeekFrom, BinRead, BinReaderExt, BinResult, BinWrite};
 use crate::collision::*;
 use crate::model::*;
 use crate::motion::*;
+use crate::utils::*;
 
 #[derive(BinRead, PartialEq, Debug)]
 #[br(repr = i32)]
@@ -43,14 +44,14 @@ struct Header {
 #[derive(BinRead, Debug)]
 pub struct ModelInfo {
   flags: i32,
-  position: [f32; 4],
-  look_vector: [f32; 4],
-  up_vector: [f32; 4],
-  is_animated: i32,
+  pub position: Vector4,
+  pub look_vector: Vector4,
+  pub up_vector: Vector4,
+  pub is_animated: i32,
   section_id: i32,
   component_id: i32,
 
-  name: [char; 260],
+  pub name: [char; 260],
 
   zone: i32,
   pub parameter_count: i32,
@@ -62,20 +63,31 @@ pub struct StreamingParameter {
   value: [char; 260],
 }
 
-#[derive(BinRead, Debug)]
-struct StreamingTexture<TH: BinRead<Args = ()>> {
-  model_info: ModelInfo,
-  padding: u32,
-  header: TH,
+impl std::fmt::Display for StreamingParameter {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}={}",
+      clean_string(&self.name),
+      clean_string(&self.value)
+    )
+  }
 }
 
 #[derive(BinRead, Debug)]
-struct StaticTexture {
-  model_info: ModelInfo,
+pub struct StreamingTexture<TH: BinRead<Args = ()>> {
+  pub model_info: ModelInfo,
+  pub padding: u32,
+  pub header: TH,
+}
 
-  dds_size: u32,
+#[derive(BinRead, Debug)]
+pub struct StaticTexture {
+  pub model_info: ModelInfo,
+
+  pub dds_size: u32,
   #[br(count = dds_size)]
-  header_file: Vec<u8>,
+  pub header_file: Vec<u8>,
 }
 
 #[derive(BinRead, Debug)]
@@ -116,26 +128,30 @@ impl<TH: BinRead<Args = ()>> Soi<TH> {
     file.read_be()
   }
 
-  pub fn find_static_texture_header(&self, section_id: u32, component_id: u32) -> Option<&Vec<u8>> {
+  pub fn find_static_texture(&self, section_id: u32, component_id: u32) -> Option<&StaticTexture> {
     for texture in &self.static_textures {
       let model_info = &texture.model_info;
       if model_info.section_id == section_id as i32
         && model_info.component_id == component_id as i32
       {
-        return Some(&texture.header_file);
+        return Some(&texture);
       }
     }
 
     None
   }
 
-  pub fn find_texture_header(&self, section_id: u32, component_id: u32) -> Option<&TH> {
+  pub fn find_streaming_texture(
+    &self,
+    section_id: u32,
+    component_id: u32,
+  ) -> Option<&StreamingTexture<TH>> {
     for texture in &self.streaming_textures {
       let model_info = &texture.model_info;
       if model_info.section_id == section_id as i32
         && model_info.component_id == component_id as i32
       {
-        return Some(&texture.header);
+        return Some(&texture);
       }
     }
 
@@ -146,13 +162,13 @@ impl<TH: BinRead<Args = ()>> Soi<TH> {
     &self,
     section_id: u32,
     component_id: u32,
-  ) -> Option<&StreamingMotionPackHeader> {
+  ) -> Option<&StreamingMotionPack> {
     for motion_pack in &self.motion_packs {
       let model_info = &motion_pack.model_info;
       if model_info.section_id == section_id as i32
         && model_info.component_id == component_id as i32
       {
-        return Some(&motion_pack.header);
+        return Some(&motion_pack);
       }
     }
 
@@ -163,26 +179,30 @@ impl<TH: BinRead<Args = ()>> Soi<TH> {
     &self,
     section_id: u32,
     component_id: u32,
-  ) -> Option<&CollisionModel> {
+  ) -> Option<&StreamingCollisionModel> {
     for collision_model in &self.collision_models {
       let model_info = &collision_model.model_info;
       if model_info.section_id == section_id as i32
         && model_info.component_id == component_id as i32
       {
-        return Some(&collision_model.collision_model);
+        return Some(&collision_model);
       }
     }
 
     None
   }
 
-  pub fn find_model(&self, section_id: u32, component_id: u32) -> Option<&XNGHeader> {
+  pub fn find_model(
+    &self,
+    section_id: u32,
+    component_id: u32,
+  ) -> Option<&StreamingRenderableModel> {
     for model in &self.renderable_models {
       let model_info = &model.model_info;
       if model_info.section_id == section_id as i32
         && model_info.component_id == component_id as i32
       {
-        return Some(&model.streaming_model_header);
+        return Some(&model);
       }
     }
 

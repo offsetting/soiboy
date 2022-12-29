@@ -3,7 +3,8 @@ use std::path::Path;
 use binrw::{BinRead, BinResult};
 
 use crate::{
-  CollisionModel, ComponentHeader, Section, Soi, StreamingMotionPackHeader, Toc, XNGHeader,
+  ComponentHeader, Section, Soi, StaticTexture, StreamingCollisionModel, StreamingMotionPack,
+  StreamingRenderableModel, StreamingTexture, Toc,
 };
 
 pub struct SoiSoup<TH: BinRead<Args = ()>> {
@@ -51,37 +52,32 @@ impl<TH: BinRead<Args = ()>> SoiSoup<TH> {
     sum as u32
   }
 
-  pub fn find_static_texture_header(
+  pub fn find_static_texture(
     &self,
     section_id: u32,
     component_id: u32,
     instance_id: u32,
-  ) -> Option<&Vec<u8>> {
-    if let Some(header) = self
-      .soi
-      .find_static_texture_header(section_id, component_id)
-    {
+  ) -> Option<&StaticTexture> {
+    if let Some(header) = self.soi.find_static_texture(section_id, component_id) {
       return Some(header);
     }
 
     let (section_id, component_id) = self.toc.find_ids(instance_id)?;
-    self
-      .soi
-      .find_static_texture_header(section_id, component_id)
+    self.soi.find_static_texture(section_id, component_id)
   }
 
-  pub fn find_texture_header(
+  pub fn find_streaming_texture(
     &self,
     section_id: u32,
     component_id: u32,
     instance_id: u32,
-  ) -> Option<&TH> {
-    if let Some(header) = self.soi.find_texture_header(section_id, component_id) {
+  ) -> Option<&StreamingTexture<TH>> {
+    if let Some(header) = self.soi.find_streaming_texture(section_id, component_id) {
       return Some(header);
     }
 
     let (section_id, component_id) = self.toc.find_ids(instance_id)?;
-    self.soi.find_texture_header(section_id, component_id)
+    self.soi.find_streaming_texture(section_id, component_id)
   }
 
   pub fn find_motion_pack(
@@ -89,7 +85,7 @@ impl<TH: BinRead<Args = ()>> SoiSoup<TH> {
     section_id: u32,
     component_id: u32,
     instance_id: u32,
-  ) -> Option<&StreamingMotionPackHeader> {
+  ) -> Option<&StreamingMotionPack> {
     if let Some(header) = self.soi.find_motion_pack(section_id, component_id) {
       return Some(header);
     }
@@ -103,7 +99,7 @@ impl<TH: BinRead<Args = ()>> SoiSoup<TH> {
     section_id: u32,
     component_id: u32,
     instance_id: u32,
-  ) -> Option<&CollisionModel> {
+  ) -> Option<&StreamingCollisionModel> {
     if let Some(header) = self.soi.find_collision_model(section_id, component_id) {
       return Some(header);
     }
@@ -117,7 +113,7 @@ impl<TH: BinRead<Args = ()>> SoiSoup<TH> {
     section_id: u32,
     component_id: u32,
     instance_id: u32,
-  ) -> Option<&XNGHeader> {
+  ) -> Option<&StreamingRenderableModel> {
     if let Some(header) = self.soi.find_model(section_id, component_id) {
       return Some(header);
     }

@@ -1,5 +1,5 @@
-use crate::model::{Vector3, Vector4};
-use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, ReadOptions};
+use crate::utils::*;
+use binrw::{BinRead, BinResult, BinWrite, ReadOptions};
 
 // Members that are commented out are part of the streaming data section, and need to be merged into the contents of the header data after extraction.
 
@@ -38,23 +38,6 @@ impl std::fmt::Display for CollisionType {
       CollisionType::StreamingFinitePlane => write!(f, "StreamingFinitePlane"),
     }
   }
-}
-
-#[derive(BinRead, BinWrite, Debug)]
-#[brw(big)]
-struct Vector3i16 {
-  pub x: i16,
-  pub y: i16,
-  pub z: i16,
-}
-
-#[derive(BinRead, BinWrite, Debug)]
-#[brw(big)]
-struct Vector4i16 {
-  pub x: i16,
-  pub y: i16,
-  pub z: i16,
-  pub w: i16,
 }
 
 #[derive(Default, BinRead, BinWrite, Debug)]
@@ -210,6 +193,22 @@ pub struct StreamingCollisionModel {
   pub parameters: Vec<crate::StreamingParameter>,
 
   pub collision_model: CollisionModel,
+}
+
+impl std::fmt::Display for StreamingCollisionModel {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "COL={}\nPosition={}\nLookVector={}\nUpVector={}",
+      clean_string(&self.model_info.name),
+      self.model_info.position,
+      self.model_info.look_vector,
+      self.model_info.up_vector
+    );
+    Ok(for param in self.parameters.iter() {
+      write!(f, "{}\n", param);
+    })
+  }
 }
 
 #[derive(binrw::BinrwNamedArgs, Clone, Debug)]
