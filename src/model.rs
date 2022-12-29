@@ -127,7 +127,7 @@ impl std::fmt::Display for StreamingRenderableModel {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(
       f,
-      "SLT={}\nPosition={}\nLookVector={}\nUpVector={}",
+      "SLT={}\nPosition={}\nLookVector={}\nUpVector={}\n",
       clean_string(&self.model_info.name),
       self.model_info.position,
       self.model_info.look_vector,

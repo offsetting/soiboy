@@ -199,7 +199,7 @@ impl std::fmt::Display for StreamingCollisionModel {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(
       f,
-      "COL={}\nPosition={}\nLookVector={}\nUpVector={}",
+      "COL={}.col\nPosition={}\nLookVector={}\nUpVector={}\n",
       clean_string(&self.model_info.name),
       self.model_info.position,
       self.model_info.look_vector,

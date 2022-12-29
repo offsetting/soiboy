@@ -43,26 +43,36 @@ fn dump_scn() {
 
   let soup = SoiSoup::cook(toc_path, soi_path).unwrap();
   let mut str = Str::read(str_path).unwrap();
+  let mut num_anim_models = 1;
+  let mut num_static_models = 1;
+  let mut num_objects = 1;
   for (id, section) in soup.find_sections().iter().enumerate() {
     let section_data = str.read_section_data(section).unwrap();
 
     for component in section_data.uncached {
-      print_component(&soup, id as u32, component);
+      print_component(&soup, id as u32, component, &mut num_anim_models, &mut num_static_models, &mut num_objects);
     }
 
     for component in section_data.cached {
-      print_component(&soup, id as u32, component);
+      print_component(&soup, id as u32, component, &mut num_anim_models, &mut num_static_models, &mut num_objects);
     }
   }
 }
 
-fn print_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: ComponentData) {
+fn print_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: ComponentData, num_anim_models: &mut i32, num_static_models: &mut i32, num_objects: &mut i32) {
   match component.kind {
     RenderableModel => {
       let header = soup
         .find_model(section_id, component.id, component.instance_id)
         .unwrap();
-      println!("{}", header);
+      if header.model_info.is_animated  == 1{
+        println!("[AnimatedModel{}]\n{}", num_anim_models, header);
+        *num_anim_models = *num_anim_models + 1;
+      }
+      else {
+        println!("[Model{}]\n{}", num_static_models, header);
+        *num_static_models = *num_static_models + 1;
+      }
     }
     Texture => {
       // println!("found Texture component kind; skipping...");
@@ -71,7 +81,8 @@ fn print_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: Co
       let header = soup
         .find_collision_model(section_id, component.id, component.instance_id)
         .unwrap();
-      println!("{}", header);
+      println!("[Object{}]\n{}", num_objects, header);
+      *num_objects = *num_objects + 1;
     }
     UserData => {
       // println!("found UserData component kind; skipping...");
