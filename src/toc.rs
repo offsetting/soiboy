@@ -35,7 +35,7 @@ pub enum ComponentKind {
   CollisionGrid,
 }
 
-#[derive(BinRead, Debug)]
+#[derive(Default, BinRead, Debug)]
 pub(crate) struct ZlibHeader {
   pub(crate) uncached_total_size: i32,
   pub(crate) cached_total_size: i32,
@@ -51,8 +51,9 @@ pub(crate) struct ZlibHeader {
 }
 
 #[derive(BinRead, Debug)]
+#[br(import{read_zlib_header: bool})]
 pub struct SectionHeader {
-  pub name: [char; 260],
+  pub name: [u8; 260],
 
   pub total_component_count: i32,
   pub uncached_component_count: i32,
@@ -70,12 +71,13 @@ pub struct SectionHeader {
   pub(crate) uncached_data_size: i32,
   pub(crate) cached_data_size: i32,
 
-  pub(crate) zlib_header: ZlibHeader,
+  #[br(if(read_zlib_header))]
+  pub(crate) zlib_header: Option<ZlibHeader>,
 }
 
 #[derive(BinRead, Debug)]
 pub struct ComponentHeader {
-  raw_path: [char; 260],
+  raw_path: [u8; 260],
 
   pub instance_id: i32,
   pub id: i32,
@@ -84,7 +86,9 @@ pub struct ComponentHeader {
 }
 
 #[derive(BinRead, Debug)]
+#[br(import{read_zlib_header: bool})]
 pub struct Section {
+  #[br(args { read_zlib_header: read_zlib_header })]
   pub header: SectionHeader,
 
   #[br(count = header.uncached_component_count)]
@@ -100,18 +104,20 @@ pub struct Toc {
 }
 
 impl Toc {
-  pub fn read(path: &Path) -> BinResult<Self> {
+  pub fn read(path: &Path, is_new: bool) -> BinResult<Self> {
     let mut file = File::open(path)?;
-    Self::read_file(&mut file)
+    Self::read_file(&mut file, is_new)
   }
 
-  pub fn read_file(file: &mut File) -> BinResult<Self> {
+  pub fn read_file(file: &mut File, is_new: bool) -> BinResult<Self> {
     let mut sections = Vec::new();
     let file_size = file.metadata()?.len();
 
     // read sections until the end of the file is reached
     while file.stream_position()? < file_size {
-      let section = file.read_be()?;
+      // hack that allows newer SOI packages to load
+      let read_zlib_header = !is_new;
+      let section = Section::read_be_args(file, binrw::args! {read_zlib_header})?;
       sections.push(section);
     }
 

@@ -59,16 +59,16 @@ pub struct Vector4i16 {
   pub w: i16,
 }
 
-const NULL_BYTE: char = '\0';
-const BACKSLASH: char = '\\';
-const SLASH: char = '/';
+const NULL_BYTE: u8 = 0;
+const BACKSLASH: u8 = 92;
+const SLASH: u8 = 47;
 
-pub(crate) fn clean_path(input: &[char]) -> String {
-  let mut output = String::new();
+pub(crate) fn clean_path(input: &[u8]) -> String {
+  let mut output = Vec::new();
 
   for c in input {
     if c == &NULL_BYTE {
-      return output;
+      return std::str::from_utf8(&output).unwrap().to_owned();
     }
 
     if c == &BACKSLASH {
@@ -78,18 +78,18 @@ pub(crate) fn clean_path(input: &[char]) -> String {
     }
   }
 
-  output
+  std::str::from_utf8(&output).unwrap().to_owned()
 }
 
-pub(crate) fn clean_string(input: &[char]) -> String {
-  let mut output = String::new();
+pub(crate) fn clean_string(input: &[u8]) -> String {
+  let mut output = Vec::new();
 
   for c in input {
     if c == &NULL_BYTE {
-      return output;
+      return std::str::from_utf8(&output).unwrap().to_owned();
     }
     output.push(*c)
   }
 
-  output
+  std::str::from_utf8(&output).unwrap().to_owned()
 }

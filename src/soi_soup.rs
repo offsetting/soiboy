@@ -14,8 +14,8 @@ pub struct SoiSoup<TH: BinRead<Args = ()>> {
 
 impl<TH: BinRead<Args = ()>> SoiSoup<TH> {
   pub fn cook(toc_path: &Path, soi_path: &Path) -> BinResult<Self> {
-    let toc = Toc::read(toc_path)?;
     let soi = Soi::read(soi_path)?;
+    let toc = Toc::read(toc_path, soi.header.version == 0x101)?;
 
     Ok(Self { toc, soi })
   }

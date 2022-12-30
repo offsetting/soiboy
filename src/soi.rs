@@ -18,8 +18,8 @@ enum StreamingMode {
 }
 
 #[derive(BinRead, Debug)]
-struct Header {
-  version: i32,
+pub struct Header {
+  pub version: i32,
 
   flags: i32,
   sections: i32,
@@ -51,7 +51,7 @@ pub struct ModelInfo {
   section_id: i32,
   component_id: i32,
 
-  pub name: [char; 260],
+  pub name: [u8; 260],
 
   zone: i32,
   pub parameter_count: i32,
@@ -59,8 +59,8 @@ pub struct ModelInfo {
 
 #[derive(BinRead, Debug)]
 pub struct StreamingParameter {
-  name: [char; 260],
-  value: [char; 260],
+  name: [u8; 260],
+  value: [u8; 260],
 }
 
 impl std::fmt::Display for StreamingParameter {
@@ -92,7 +92,7 @@ pub struct StaticTexture {
 
 #[derive(BinRead, Debug)]
 pub struct Soi<TH: BinRead<Args = ()>> {
-  header: Header,
+  pub header: Header,
 
   #[br(count = header.uncached_pages)]
   uncached_page_sizes: Vec<i32>,

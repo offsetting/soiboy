@@ -6,7 +6,7 @@ use binrw::io;
 use flate2::read::ZlibDecoder;
 
 use crate::toc::ComponentKind;
-use crate::{ComponentHeader, Section};
+use crate::{ComponentHeader, Section, MemoryEntry};
 
 #[derive(Debug)]
 pub struct SectionData {
@@ -40,22 +40,36 @@ impl Str {
 
   pub fn read_section_data(&mut self, section: &Section) -> io::Result<SectionData> {
     let header = &section.header;
-    let zlib = &header.zlib_header;
+    if let Some(zlib) = &header.zlib_header {
+      let section_offset = header.memory_entry.offset as u64;
+      self.file.seek(SeekFrom::Start(section_offset))?;
+  
+      let uncached = {
+        let data = self.decode_zlib_data(header.uncached_data_size as usize, &zlib.uncached_sizes)?;
+        extract_components(&section.uncached_components, data)
+      };
+  
+      let cached = {
+        let data = self.decode_zlib_data(header.cached_data_size as usize, &zlib.cached_sizes)?;
+        extract_components(&section.cached_components, data)
+      };
+  
+      Ok(SectionData { uncached, cached })
+    }
+    else {
+      let section_offset = header.memory_entry.offset as u64;
+      self.file.seek(SeekFrom::Start(section_offset))?;
 
-    let section_offset = header.memory_entry.offset as u64;
-    self.file.seek(SeekFrom::Start(section_offset))?;
+      let mut uncached_data = vec![0u8; header.uncached_data_size as usize];
+      self.file.read(&mut uncached_data);
+      let uncached = extract_components(&section.uncached_components, uncached_data);
 
-    let uncached = {
-      let data = self.decode_zlib_data(header.uncached_data_size as usize, &zlib.uncached_sizes)?;
-      extract_components(&section.uncached_components, data)
-    };
+      let mut cached_data = vec![0u8; header.cached_data_size as usize];
+      self.file.read(&mut cached_data);
+      let cached = extract_components(&section.cached_components, cached_data);
 
-    let cached = {
-      let data = self.decode_zlib_data(header.cached_data_size as usize, &zlib.cached_sizes)?;
-      extract_components(&section.cached_components, data)
-    };
-
-    Ok(SectionData { uncached, cached })
+      Ok(SectionData { uncached, cached })
+    }
   }
 
   pub fn decode_zlib_data(
