@@ -4,17 +4,18 @@ use std::path::{Path, PathBuf};
 use binrw::{BinWrite, WriteOptions};
 use x_flipper_360::*;
 
+use crate::utils::*;  
 use crate::ComponentKind::{self, *};
 use crate::{CollisionModelArgs, ComponentData, SoiSoup, Str, XNGHeaderArgs};
 
 #[test]
 fn extract() {
   let toc_path =
-    Path::new("D:\\Xbox 360\\RoRX360_Extracted\\RELEASE (NEW)\\C\\Scenes\\CR_03\\MiniMap\\MiniMap.x360.toc");
+    Path::new("D:\\GigaLeak\\Rs_A_Mn\\RS_A.x360.toc");
   let soi_path =
-    Path::new("D:\\Xbox 360\\RoRX360_Extracted\\RELEASE (NEW)\\C\\Scenes\\CR_03\\MiniMap\\MiniMap.x360.soi");
+    Path::new("D:\\GigaLeak\\Rs_A_Mn\\RS_A.x360.soi");
   let str_path =
-    Path::new("D:\\Xbox 360\\RoRX360_Extracted\\RELEASE (NEW)\\C\\Scenes\\CR_03\\MiniMap\\MiniMap.x360.str");
+    Path::new("D:\\GigaLeak\\Rs_A_Mn\\RS_A.x360.str");
   
   let soup = SoiSoup::cook(toc_path, soi_path).unwrap();
   let mut str = Str::read(str_path).unwrap();
@@ -30,16 +31,24 @@ fn extract() {
       process_component(&soup, id as u32, component);
     }
   }
+
+  for static_texture in soup.static_textures().iter() {
+    let path = PathBuf::from(format!("D:\\GigaLeak\\Rs_A_Mn\\Out\\{}.dds", clean_path(&static_texture.model_info.name)));
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut out = std::fs::File::create(path).unwrap();
+    out.write_all(&static_texture.header_file).unwrap();
+  }
+
 }
 
 #[test]
 fn dump_scn() {
   let toc_path =
-    Path::new("D:\\Xbox 360\\RoRX360_Extracted\\RELEASE (NEW)\\C\\Scenes\\CR_03\\MiniMap\\MiniMap.x360.toc");
+    Path::new("D:\\GigaLeak\\Rs_A_Mn\\RS_A.x360.toc");
   let soi_path =
-    Path::new("D:\\Xbox 360\\RoRX360_Extracted\\RELEASE (NEW)\\C\\Scenes\\CR_03\\MiniMap\\MiniMap.x360.soi");
+    Path::new("D:\\GigaLeak\\Rs_A_Mn\\RS_A.x360.soi");
   let str_path =
-    Path::new("D:\\Xbox 360\\RoRX360_Extracted\\RELEASE (NEW)\\C\\Scenes\\CR_03\\MiniMap\\MiniMap.x360.str");
+    Path::new("D:\\GigaLeak\\Rs_A_Mn\\RS_A.x360.str");
 
   let soup = SoiSoup::cook(toc_path, soi_path).unwrap();
   let mut str = Str::read(str_path).unwrap();
@@ -102,7 +111,7 @@ fn process_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: 
       .find_motion_pack(section_id, component.id, component.instance_id)
       .unwrap();
 
-    let path = PathBuf::from(format!("D:\\GigaLeak\\MiniMap\\Out\\{}.got", component.path));
+    let path = PathBuf::from(format!("D:\\GigaLeak\\Rs_A_Mn\\Out\\{}.got", component.path));
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     let mut out = std::fs::File::create(path).unwrap();
     header.header.write(&mut out);
@@ -114,7 +123,7 @@ fn process_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: 
       .find_model(section_id, component.id, component.instance_id)
       .unwrap();
 
-    let path = PathBuf::from(format!("D:\\GigaLeak\\MiniMap\\Out\\{}.xng", component.path));
+    let path = PathBuf::from(format!("D:\\GigaLeak\\Rs_A_Mn\\Out\\{}.xng", component.path));
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     let mut out = std::fs::File::create(path).unwrap();
     let options = WriteOptions::new(binrw::Endian::Big);
@@ -129,13 +138,12 @@ fn process_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: 
       )
       .unwrap();
   }
-
   if component.kind == ComponentKind::CollisionModel {
     let header = soup
       .find_collision_model(section_id, component.id, component.instance_id)
       .unwrap();
 
-    let path = PathBuf::from(format!("D:\\GigaLeak\\MiniMap\\Out\\{}.gol", component.path));
+    let path = PathBuf::from(format!("D:\\GigaLeak\\Rs_A_Mn\\Out\\{}.gol", component.path));
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     let mut out = std::fs::File::create(path).unwrap();
     let options = WriteOptions::new(binrw::Endian::Big);
@@ -150,7 +158,6 @@ fn process_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: 
       )
       .unwrap();
   }
-
   if component.kind == ComponentKind::Texture {
     match soup.find_streaming_texture(section_id, component.id, component.instance_id) {
       Some(header) => {
@@ -174,7 +181,7 @@ fn process_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: 
               mip_address: metadata.mip_address(),
             };
 
-            let path = PathBuf::from(format!("D:\\GigaLeak\\MiniMap\\Out\\{}.dds", component.path));
+            let path = PathBuf::from(format!("D:\\GigaLeak\\Rs_A_Mn\\Out\\{}.dds", component.path));
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             let mut out = std::fs::File::create(path).unwrap();
             x_flipper_360::convert_to_dds(&config, &component.data, &mut out).unwrap();
@@ -196,7 +203,7 @@ fn process_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: 
               mip_address: metadata.mip_address(),
             };
 
-            let path = PathBuf::from(format!("D:\\GigaLeak\\MiniMap\\Out\\{}.dds", component.path));
+            let path = PathBuf::from(format!("D:\\GigaLeak\\Rs_A_Mn\\Out\\{}.dds", component.path));
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             let mut out = std::fs::File::create(path).unwrap();
             x_flipper_360::convert_to_dds(&config, &component.data, &mut out).unwrap();
@@ -218,7 +225,7 @@ fn process_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: 
               mip_address: metadata.mip_address(),
             };
 
-            let path = PathBuf::from(format!("D:\\GigaLeak\\MiniMap\\Out\\{}.dds", component.path));
+            let path = PathBuf::from(format!("D:\\GigaLeak\\Rs_A_Mn\\Out\\{}.dds", component.path));
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             let mut out = std::fs::File::create(path).unwrap();
             x_flipper_360::convert_to_dds(&config, &component.data, &mut out).unwrap();
@@ -227,7 +234,7 @@ fn process_component(soup: &SoiSoup<TextureHeader>, section_id: u32, component: 
       }
       None => match soup.find_static_texture(section_id, component.id, component.instance_id) {
         Some(static_texture) => {
-          let path = PathBuf::from(format!("D:\\GigaLeak\\MiniMap\\Out\\{}.dds", component.path));
+          let path = PathBuf::from(format!("D:\\GigaLeak\\Rs_A_Mn\\Out\\{}.dds", component.path));
           std::fs::create_dir_all(path.parent().unwrap()).unwrap();
           let mut out = std::fs::File::create(path).unwrap();
           out.write_all(&static_texture.header_file).unwrap();

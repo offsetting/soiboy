@@ -128,6 +128,26 @@ impl<TH: BinRead<Args = ()>> Soi<TH> {
     file.read_be()
   }
 
+  pub fn get_streaming_textures(&self) -> &[StreamingTexture<TH>] {
+    return &self.streaming_textures;
+  }
+
+  pub fn get_static_textures(&self) -> &[StaticTexture] {
+    return &self.static_textures;
+  }
+
+  pub fn get_motion_packs(&self) -> &[StreamingMotionPack] {
+    return &self.motion_packs;
+  }
+
+  pub fn get_renderable_models(&self) -> &[StreamingRenderableModel] {
+    return &self.renderable_models;
+  }
+
+  pub fn get_collision_models(&self) -> &[StreamingCollisionModel] {
+    return &self.collision_models;
+  }
+  
   pub fn find_static_texture(&self, section_id: u32, component_id: u32) -> Option<&StaticTexture> {
     for texture in &self.static_textures {
       let model_info = &texture.model_info;

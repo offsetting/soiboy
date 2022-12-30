@@ -42,6 +42,26 @@ impl<TH: BinRead<Args = ()>> SoiSoup<TH> {
     components
   }
 
+  pub fn streaming_textures(&self) -> &[StreamingTexture<TH>] {
+    self.soi.get_streaming_textures()
+  }
+
+  pub fn static_textures(&self) -> &[StaticTexture] {
+    self.soi.get_static_textures()
+  }
+  
+  pub fn motion_packs(&self) -> &[StreamingMotionPack] {
+    self.soi.get_motion_packs()
+  }
+
+  pub fn renderable_models(&self) -> &[StreamingRenderableModel] {
+    self.soi.get_renderable_models()
+  }
+
+  pub fn collision_models(&self) -> &[StreamingCollisionModel] {
+    self.soi.get_collision_models()
+  }
+
   pub fn component_count(&self) -> u32 {
     let mut sum = 0;
 

@@ -197,34 +197,34 @@ impl BinWrite for XNGHeader {
           offset += 2;
         }
         if (ty & 0x01) == 0x01 {
-          offset += (mesh.num_vertices as usize * 12);
+          offset += mesh.num_vertices as usize * 12;
         }
         if (ty & 0x02) == 0x02 {
-          offset += (mesh.num_vertices as usize * 12);
+          offset += mesh.num_vertices as usize * 12;
         }
         if (ty & 0x08) == 0x08 {
-          offset += (mesh.num_vertices as usize * 4);
+          offset += mesh.num_vertices as usize * 4;
         }
         if (ty & 0x04) == 0x04 {
-          offset += (mesh.num_vertices as usize * 8);
+          offset += mesh.num_vertices as usize * 8;
         }
         if (ty & 0x40) == 0x40 {
-          offset += (mesh.num_vertices as usize * 4);
+          offset += mesh.num_vertices as usize * 4;
         }
         if (ty & 0x1000) == 0x1000 {
-          offset += (mesh.num_vertices as usize * 32);
+          offset += mesh.num_vertices as usize * 32;
         }
         if (ty & 0x10) == 0x10 {
-          offset += (mesh.num_vertices as usize * 8);
+          offset += mesh.num_vertices as usize * 8;
         }
         if (ty & 0x4000) == 0x4000 {
-          offset += (mesh.num_vertices as usize * 8);
+          offset += mesh.num_vertices as usize * 8;
         }
         if (ty & 0x8000) == 0x8000 {
-          offset += (mesh.num_vertices as usize * 8);
+          offset += mesh.num_vertices as usize * 8;
         }
         if (ty & 0x20) == 0x20 {
-          offset += (mesh.num_vertices as usize * 12);
+          offset += mesh.num_vertices as usize * 12;
         }
 
         let data = (&args.streaming_data[offset_in_data..offset_in_data + offset]).to_vec();
