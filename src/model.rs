@@ -180,7 +180,7 @@ impl BinWrite for XNGHeader {
         }
         u8::write_options(&mesh.num_texture_coordinate_sets, writer, options, ())?;
         u8::write_options(&mesh.compressed, writer, options, ())?;
-        u8::write_options(&mesh.streaming, writer, options, ())?;
+        u8::write_options(&0, writer, options, ())?;
         u8::write_options(&mesh.unk, writer, options, ())?;
         u8::write_options(&mesh.unk2, writer, options, ())?;
         u8::write_options(&mesh.unk3, writer, options, ())?;
