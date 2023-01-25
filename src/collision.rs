@@ -50,7 +50,7 @@ struct TreeFace {
 
 #[derive(Default, BinRead, BinWrite, Debug)]
 #[brw(big)]
-struct StreamingDataTreeFace {
+struct RaceORamaStreamingDataTreeFace {
   vectors: [Vector4; 2],
   type_indices: [i16; 2],
   volume: f32,
@@ -58,7 +58,7 @@ struct StreamingDataTreeFace {
   radius: f32,
 }
 
-impl StreamingDataTreeFace {
+impl RaceORamaStreamingDataTreeFace {
   pub fn to_tree_face(&self) -> TreeFace {
     TreeFace {
       volume: self.volume,
@@ -79,6 +79,25 @@ impl StreamingDataTreeFace {
   }
 }
 
+#[derive(Default, BinRead, BinWrite, Debug)]
+#[brw(big)]
+struct StreamingDataTreeFace {
+  volume: f32,
+  radius: f32,
+  type_indices: [i16; 2],
+  vectors: [Vector3; 2],
+}
+
+impl StreamingDataTreeFace {
+  pub fn to_tree_face(&self) -> TreeFace {
+    TreeFace {
+      volume: self.volume,
+      vectors: self.vectors,
+      type_indices: self.type_indices,
+    }
+  }
+}
+
 #[derive(BinRead, BinWrite, Debug)]
 #[brw(big)]
 struct TreeFaceLeaf {
@@ -89,14 +108,14 @@ struct TreeFaceLeaf {
 
 #[derive(BinRead, BinWrite, Debug)]
 #[brw(big)]
-struct StreamingDataTreeFaceLeaf {
+struct RaceORamaStreamingDataTreeFaceLeaf {
   vector: Vector4,
   dvalue: f32,
   #[brw(pad_after = 6)]
   vertices: [i16; 3],
 }
 
-impl StreamingDataTreeFaceLeaf {
+impl RaceORamaStreamingDataTreeFaceLeaf {
   pub fn to_tree_face_leaf(&self) -> TreeFaceLeaf {
     TreeFaceLeaf {
       dvalue: self.dvalue,
@@ -106,6 +125,38 @@ impl StreamingDataTreeFaceLeaf {
         z: self.vector.z,
       },
       vertices: self.vertices,
+    }
+  }
+}
+
+#[derive(BinRead, BinWrite, Debug)]
+#[brw(big)]
+struct StreamingDataTreeFaceLeaf {
+  vertices: [i16; 3],
+  unknown1: f32,
+  unknown2: u16,
+  vector: Vector3i16,
+  unknown1_bits: u16,
+}
+// assert_eq!(std::mem::size_of<StreamingDataTreeFaceLeaf>, 20);
+
+impl StreamingDataTreeFaceLeaf {
+  pub fn to_tree_face_leaf(&self, global_vertices: &[Vector3]) -> TreeFaceLeaf {
+    let vertex = global_vertices.get(self.vertices[0] as usize).unwrap();
+    let normal = Vector3 {
+      x: self.vector.x as f32 / 16384.0_f32,
+      y: self.vector.y as f32 / 16384.0_f32,
+      z: self.vector.z as f32 / 16384.0_f32,
+    };
+    let dvalue = -1.0_f32 * (vertex.x * normal.x + vertex.y * normal.y + vertex.z * normal.z);
+    TreeFaceLeaf {
+      dvalue,
+      vector: normal,
+      vertices: [
+        self.vertices[0] as i16,
+        self.vertices[1] as i16,
+        self.vertices[2] as i16,
+      ],
     }
   }
 }
@@ -213,6 +264,7 @@ impl std::fmt::Display for StreamingCollisionModel {
 
 #[derive(binrw::BinrwNamedArgs, Clone, Debug)]
 pub struct CollisionModelArgs {
+  pub ror: bool,
   pub streaming_data: Vec<u8>,
 }
 
@@ -236,7 +288,6 @@ impl BinWrite for CollisionModel {
 
     let mut cursor = std::io::Cursor::new(&args.streaming_data);
 
-    println!("{}", self.collision_type);
     match self.collision_type {
       CollisionType::Soultree => panic!("Unsupported collision type!"),
       CollisionType::SoultreeHeirarchy => panic!("Unsupported collision type!"),
@@ -258,148 +309,253 @@ impl BinWrite for CollisionModel {
         u32::write_options(&self.object.tree_face_leaf_count, writer, options, ())?;
         i32::write_options(&self.object.quantized, writer, options, ())?;
 
+        // Conversion from MN's streaming format requires the vertices be cached and used later for DValue calculation.
+        let mut global_vertices = Vec::new();
+
         if self.object.quantized == 0 {
-          // Read Vector4s from the data and write out Vector3s, truncating the W component.
-          cursor.set_position(offset_in_data as u64);
-          let vectors = Vec::<Vector4>::read_options(
-            &mut cursor,
-            &ReadOptions::new(binrw::Endian::Big),
-            binrw::VecArgs::builder()
-              .count(self.object.vertex_count as usize)
-              .finalize(),
-          )
-          .unwrap();
+          if args.ror {
+            // Read Vector4s from the data and write out Vector3s, truncating the W component.
+            cursor.set_position(offset_in_data as u64);
+            let vertices = Vec::<Vector4>::read_options(
+              &mut cursor,
+              &ReadOptions::new(binrw::Endian::Big),
+              binrw::VecArgs::builder()
+                .count(self.object.vertex_count as usize)
+                .finalize(),
+            )
+            .unwrap();
 
-          let mut truncated_vectors = Vec::new();
-          for vec in vectors.iter() {
-            truncated_vectors.push(Vector3 {
-              x: vec.x,
-              y: vec.y,
-              z: vec.z,
-            });
+            let mut truncated_vertices = Vec::new();
+            for vec in vertices.iter() {
+              truncated_vertices.push(Vector3 {
+                x: vec.x,
+                y: vec.y,
+                z: vec.z,
+              });
+            }
+
+            Vec::write_options(&truncated_vertices, writer, options, ())?;
+            offset_in_data += 16 * self.object.vertex_count as usize;
+          } else {
+            cursor.set_position(offset_in_data as u64);
+            global_vertices = Vec::<Vector3>::read_options(
+              &mut cursor,
+              &ReadOptions::new(binrw::Endian::Big),
+              binrw::VecArgs::builder()
+                .count(self.object.vertex_count as usize)
+                .finalize(),
+            )
+            .unwrap();
+
+            Vec::write_options(&global_vertices, writer, options, ())?;
+            offset_in_data += 12 * self.object.vertex_count as usize;
+
+            // let data = (&args.streaming_data[offset_in_data..offset_in_data + 12 * self.object.vertex_count as usize]).to_vec();
+            // Vec::write_options(&data, writer, options, ())?;
+            // offset_in_data += 12 * self.object.vertex_count as usize;
           }
-
-          Vec::write_options(&truncated_vectors, writer, options, ())?;
-          offset_in_data += 16 * self.object.vertex_count as usize;
         }
         if self.object.quantized == 1 {
-          // Read Vector4i16s from the data and write out Vector3i16s, truncating the W component.
-          cursor.set_position(offset_in_data as u64);
-          let vectors = Vec::<Vector4i16>::read_options(
-            &mut cursor,
-            &ReadOptions::new(binrw::Endian::Big),
-            binrw::VecArgs::builder()
-              .count(self.object.vertex_count as usize)
-              .finalize(),
-          )
-          .unwrap();
+          if args.ror {
+            // Read Vector4i16s from the data and write out Vector3i16s, truncating the W component.
+            cursor.set_position(offset_in_data as u64);
+            let vertices = Vec::<Vector4i16>::read_options(
+              &mut cursor,
+              &ReadOptions::new(binrw::Endian::Big),
+              binrw::VecArgs::builder()
+                .count(self.object.vertex_count as usize)
+                .finalize(),
+            )
+            .unwrap();
 
-          let mut truncated_vectors = Vec::new();
-          for vec in vectors.iter() {
-            truncated_vectors.push(Vector3i16 {
-              x: vec.x,
-              y: vec.y,
-              z: vec.z,
-            });
+            let mut truncated_vertices = Vec::new();
+            for vec in vertices.iter() {
+              truncated_vertices.push(Vector3i16 {
+                x: vec.x,
+                y: vec.y,
+                z: vec.z,
+              });
+            }
+
+            Vec::write_options(&truncated_vertices, writer, options, ())?;
+            offset_in_data += 8 * self.object.vertex_count as usize;
+          } else {
+            cursor.set_position(offset_in_data as u64);
+            let quantized_vertices = Vec::<Vector3i16>::read_options(
+              &mut cursor,
+              &ReadOptions::new(binrw::Endian::Big),
+              binrw::VecArgs::builder()
+                .count(self.object.vertex_count as usize)
+                .finalize(),
+            )
+            .unwrap();
+
+            Vec::write_options(&quantized_vertices, writer, options, ())?;
+            offset_in_data += 6 * self.object.vertex_count as usize;
+
+            for vec in quantized_vertices.iter() {
+              global_vertices.push(Vector3 {
+                x: vec.x as f32 / 16384.0_f32,
+                y: vec.y as f32 / 16384.0_f32,
+                z: vec.z as f32 / 16384.0_f32,
+              });
+            }
+
+            // let data = (&args.streaming_data[offset_in_data..offset_in_data + 6 * self.object.vertex_count as usize]).to_vec();
+            // Vec::write_options(&data, writer, options, ())?;
+            // offset_in_data += 6 * self.object.vertex_count as usize;
           }
-
-          Vec::write_options(&truncated_vectors, writer, options, ())?;
-          offset_in_data += 8 * self.object.vertex_count as usize;
         }
         i32::write_options(&self.object.load_normals, writer, options, ())?;
         if self.object.load_normals == 1 {
           if self.object.quantized == 0 {
-            // Read Vector4s from the data and write out Vector3s, truncating the W component.
-            cursor.set_position(offset_in_data as u64);
-            let vectors = Vec::<Vector4>::read_options(
-              &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
-              binrw::VecArgs::builder()
-                .count(self.object.vertex_count as usize)
-                .finalize(),
-            )
-            .unwrap();
+            if args.ror {
+              // Read Vector4s from the data and write out Vector3s, truncating the W component.
+              cursor.set_position(offset_in_data as u64);
+              let normals = Vec::<Vector4>::read_options(
+                &mut cursor,
+                &ReadOptions::new(binrw::Endian::Big),
+                binrw::VecArgs::builder()
+                  .count(self.object.vertex_count as usize)
+                  .finalize(),
+              )
+              .unwrap();
 
-            let mut truncated_vectors = Vec::new();
-            for vec in vectors.iter() {
-              truncated_vectors.push(Vector3 {
-                x: vec.x,
-                y: vec.y,
-                z: vec.z,
-              });
+              let mut truncated_normals = Vec::new();
+              for vec in normals.iter() {
+                truncated_normals.push(Vector3 {
+                  x: vec.x,
+                  y: vec.y,
+                  z: vec.z,
+                });
+              }
+
+              Vec::write_options(&truncated_normals, writer, options, ())?;
+              offset_in_data += 16 * self.object.vertex_count as usize;
+            } else {
+              let data = (&args.streaming_data
+                [offset_in_data..offset_in_data + 12 * self.object.vertex_count as usize])
+                .to_vec();
+              Vec::write_options(&data, writer, options, ())?;
+              offset_in_data += 12 * self.object.vertex_count as usize;
             }
-
-            Vec::write_options(&truncated_vectors, writer, options, ())?;
-            offset_in_data += 16 * self.object.vertex_count as usize;
           }
           if self.object.quantized == 1 {
-            // Read Vector4i16s from the data and write out Vector3i16s, truncating the W component.
-            cursor.set_position(offset_in_data as u64);
-            let vectors = Vec::<Vector4i16>::read_options(
-              &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
-              binrw::VecArgs::builder()
-                .count(self.object.vertex_count as usize)
-                .finalize(),
-            )
-            .unwrap();
+            if args.ror {
+              // Read Vector4i16s from the data and write out Vector3i16s, truncating the W component.
+              cursor.set_position(offset_in_data as u64);
+              let normals = Vec::<Vector4i16>::read_options(
+                &mut cursor,
+                &ReadOptions::new(binrw::Endian::Big),
+                binrw::VecArgs::builder()
+                  .count(self.object.vertex_count as usize)
+                  .finalize(),
+              )
+              .unwrap();
 
-            let mut truncated_vectors = Vec::new();
-            for vec in vectors.iter() {
-              truncated_vectors.push(Vector3i16 {
-                x: vec.x,
-                y: vec.y,
-                z: vec.z,
-              });
+              let mut truncated_normals = Vec::new();
+              for vec in normals.iter() {
+                truncated_normals.push(Vector3i16 {
+                  x: vec.x,
+                  y: vec.y,
+                  z: vec.z,
+                });
+              }
+
+              Vec::write_options(&truncated_normals, writer, options, ())?;
+              offset_in_data += 8 * self.object.vertex_count as usize;
+            } else {
+              let data = (&args.streaming_data
+                [offset_in_data..offset_in_data + 6 * self.object.vertex_count as usize])
+                .to_vec();
+              Vec::write_options(&data, writer, options, ())?;
+              offset_in_data += 6 * self.object.vertex_count as usize;
             }
-
-            Vec::write_options(&truncated_vectors, writer, options, ())?;
-            offset_in_data += 8 * self.object.vertex_count as usize;
           }
         }
         // Nasty hack...
-        if self.object.vertex_count % 2 == 1 {
+        if args.ror && self.object.vertex_count % 2 == 1 {
           offset_in_data += 16;
         }
+        if args.ror {
+          // Read RaceORamaStreamingDataTreeFace from the data and write out TreeFaces.
+          cursor.set_position(offset_in_data as u64);
+          let ror_tree_faces = Vec::<RaceORamaStreamingDataTreeFace>::read_options(
+            &mut cursor,
+            &ReadOptions::new(binrw::Endian::Big),
+            binrw::VecArgs::builder()
+              .count(self.object.tree_face_count as usize)
+              .finalize(),
+          )
+          .unwrap();
 
-        // Read StreamingDataTreeFaces from the data and write out TreeFaces.
-        cursor.set_position(offset_in_data as u64);
-        let vectors = Vec::<StreamingDataTreeFace>::read_options(
-          &mut cursor,
-          &ReadOptions::new(binrw::Endian::Big),
-          binrw::VecArgs::builder()
-            .count(self.object.tree_face_count as usize)
-            .finalize(),
-        )
-        .unwrap();
+          let mut tree_faces = Vec::new();
+          for vec in ror_tree_faces.iter() {
+            tree_faces.push(vec.to_tree_face());
+          }
 
-        let mut tree_faces = Vec::new();
-        for vec in vectors.iter() {
-          tree_faces.push(vec.to_tree_face());
+          Vec::write_options(&tree_faces, writer, options, ())?;
+          offset_in_data += 64 * self.object.tree_face_count as usize;
+        } else {
+          // Read StreamingDataTreeFaces from the data and write out TreeFaces.
+          cursor.set_position(offset_in_data as u64);
+          let mn_tree_faces = Vec::<StreamingDataTreeFace>::read_options(
+            &mut cursor,
+            &ReadOptions::new(binrw::Endian::Big),
+            binrw::VecArgs::builder()
+              .count(self.object.tree_face_count as usize)
+              .finalize(),
+          )
+          .unwrap();
+
+          let mut tree_faces = Vec::new();
+          for vec in mn_tree_faces.iter() {
+            tree_faces.push(vec.to_tree_face());
+          }
+
+          Vec::write_options(&tree_faces, writer, options, ())?;
+          offset_in_data += 36 * self.object.tree_face_count as usize;
         }
+        if args.ror {
+          // Read StreamingDataTreeFaceLeaves from the data and write out TreeFaceLeaves.
+          cursor.set_position(offset_in_data as u64);
+          let ror_face_leaves = Vec::<RaceORamaStreamingDataTreeFaceLeaf>::read_options(
+            &mut cursor,
+            &ReadOptions::new(binrw::Endian::Big),
+            binrw::VecArgs::builder()
+              .count(self.object.tree_face_leaf_count as usize)
+              .finalize(),
+          )
+          .unwrap();
 
-        Vec::write_options(&tree_faces, writer, options, ())?;
-        offset_in_data += 64 * self.object.tree_face_count as usize;
+          let mut tree_face_leaves = Vec::new();
+          for vec in ror_face_leaves.iter() {
+            tree_face_leaves.push(vec.to_tree_face_leaf());
+          }
 
-        // Read StreamingDataTreeFaceLeaves from the data and write out TreeFaceLeaves.
-        cursor.set_position(offset_in_data as u64);
-        let vectors = Vec::<StreamingDataTreeFaceLeaf>::read_options(
-          &mut cursor,
-          &ReadOptions::new(binrw::Endian::Big),
-          binrw::VecArgs::builder()
-            .count(self.object.tree_face_leaf_count as usize)
-            .finalize(),
-        )
-        .unwrap();
+          Vec::write_options(&tree_face_leaves, writer, options, ())?;
+          offset_in_data += 32 * self.object.tree_face_leaf_count as usize;
+        } else {
+          // Read StreamingDataTreeFaceLeaves from the data and write out TreeFaceLeaves.
+          cursor.set_position(offset_in_data as u64);
+          let mn_face_leaves = Vec::<StreamingDataTreeFaceLeaf>::read_options(
+            &mut cursor,
+            &ReadOptions::new(binrw::Endian::Big),
+            binrw::VecArgs::builder()
+              .count(self.object.tree_face_leaf_count as usize)
+              .finalize(),
+          )
+          .unwrap();
 
-        let mut tree_face_leaves = Vec::new();
-        for vec in vectors.iter() {
-          tree_face_leaves.push(vec.to_tree_face_leaf());
+          let mut tree_face_leaves = Vec::new();
+          for vec in mn_face_leaves.iter() {
+            tree_face_leaves.push(vec.to_tree_face_leaf(&global_vertices));
+          }
+
+          Vec::write_options(&tree_face_leaves, writer, options, ())?;
+          offset_in_data += 20 * self.object.tree_face_leaf_count as usize;
         }
-
-        Vec::write_options(&tree_face_leaves, writer, options, ())?;
-        offset_in_data += 32 * self.object.tree_face_leaf_count as usize;
-        // assert_eq!(offset_in_data, args.streaming_data.len());
+        assert_eq!(offset_in_data, args.streaming_data.len());
       }
       CollisionType::StreamingHeirarchy => {
         CollisionType::write_options(&CollisionType::SoultreeHeirarchy, writer, options, ())?;
@@ -415,150 +571,254 @@ impl BinWrite for CollisionModel {
           u32::write_options(&object.object.tree_face_leaf_count, writer, options, ())?;
           i32::write_options(&object.object.quantized, writer, options, ())?;
 
+          // Conversion from MN's streaming format requires the vertices be cached and used later for DValue calculation.
+          let mut global_vertices = Vec::new();
+
           if object.object.quantized == 0 {
-            // Read Vector4s from the data and write out Vector3s, truncating the W component.
-            cursor.set_position(offset_in_data as u64);
-            let vectors = Vec::<Vector4>::read_options(
-              &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
-              binrw::VecArgs::builder()
-                .count(object.object.vertex_count as usize)
-                .finalize(),
-            )
-            .unwrap();
+            if args.ror {
+              // Read Vector4s from the data and write out Vector3s, truncating the W component.
+              cursor.set_position(offset_in_data as u64);
+              let vertices = Vec::<Vector4>::read_options(
+                &mut cursor,
+                &ReadOptions::new(binrw::Endian::Big),
+                binrw::VecArgs::builder()
+                  .count(object.object.vertex_count as usize)
+                  .finalize(),
+              )
+              .unwrap();
 
-            let mut truncated_vectors = Vec::new();
-            for vec in vectors.iter() {
-              truncated_vectors.push(Vector3 {
-                x: vec.x,
-                y: vec.y,
-                z: vec.z,
-              });
+              let mut truncated_vertices = Vec::new();
+              for vec in vertices.iter() {
+                truncated_vertices.push(Vector3 {
+                  x: vec.x,
+                  y: vec.y,
+                  z: vec.z,
+                });
+              }
+
+              Vec::write_options(&truncated_vertices, writer, options, ())?;
+              offset_in_data += 16 * object.object.vertex_count as usize;
+            } else {
+              cursor.set_position(offset_in_data as u64);
+              global_vertices = Vec::<Vector3>::read_options(
+                &mut cursor,
+                &ReadOptions::new(binrw::Endian::Big),
+                binrw::VecArgs::builder()
+                  .count(object.object.vertex_count as usize)
+                  .finalize(),
+              )
+              .unwrap();
+
+              Vec::write_options(&global_vertices, writer, options, ())?;
+              offset_in_data += 12 * object.object.vertex_count as usize;
+
+              // let data = (&args.streaming_data[offset_in_data..offset_in_data + 12 * object.object.vertex_count as usize]).to_vec();
+              // Vec::write_options(&data, writer, options, ())?;
+              // offset_in_data += 12 * object.object.vertex_count as usize;
             }
-
-            Vec::write_options(&truncated_vectors, writer, options, ())?;
-            offset_in_data += 16 * object.object.vertex_count as usize;
           }
           if object.object.quantized == 1 {
-            // Read Vector4i16s from the data and write out Vector3i16s, truncating the W component.
-            cursor.set_position(offset_in_data as u64);
-            let vectors = Vec::<Vector4i16>::read_options(
-              &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
-              binrw::VecArgs::builder()
-                .count(object.object.vertex_count as usize)
-                .finalize(),
-            )
-            .unwrap();
+            if args.ror {
+              // Read Vector4i16s from the data and write out Vector3i16s, truncating the W component.
+              cursor.set_position(offset_in_data as u64);
+              let vertices = Vec::<Vector4i16>::read_options(
+                &mut cursor,
+                &ReadOptions::new(binrw::Endian::Big),
+                binrw::VecArgs::builder()
+                  .count(object.object.vertex_count as usize)
+                  .finalize(),
+              )
+              .unwrap();
 
-            let mut truncated_vectors = Vec::new();
-            for vec in vectors.iter() {
-              truncated_vectors.push(Vector3i16 {
-                x: vec.x,
-                y: vec.y,
-                z: vec.z,
-              });
+              let mut truncated_vertices = Vec::new();
+              for vec in vertices.iter() {
+                truncated_vertices.push(Vector3i16 {
+                  x: vec.x,
+                  y: vec.y,
+                  z: vec.z,
+                });
+              }
+
+              Vec::write_options(&truncated_vertices, writer, options, ())?;
+              offset_in_data += 8 * object.object.vertex_count as usize;
+            } else {
+              cursor.set_position(offset_in_data as u64);
+              let quantized_vertices = Vec::<Vector3i16>::read_options(
+                &mut cursor,
+                &ReadOptions::new(binrw::Endian::Big),
+                binrw::VecArgs::builder()
+                  .count(object.object.vertex_count as usize)
+                  .finalize(),
+              )
+              .unwrap();
+
+              Vec::write_options(&quantized_vertices, writer, options, ())?;
+              offset_in_data += 6 * object.object.vertex_count as usize;
+
+              for vec in quantized_vertices.iter() {
+                global_vertices.push(Vector3 {
+                  x: vec.x as f32 / 16384.0_f32,
+                  y: vec.y as f32 / 16384.0_f32,
+                  z: vec.z as f32 / 16384.0_f32,
+                });
+              }
+
+              // let data = (&args.streaming_data[offset_in_data..offset_in_data + 6 * object.object.vertex_count as usize]).to_vec();
+              // Vec::write_options(&data, writer, options, ())?;
+              // offset_in_data += 6 * object.object.vertex_count as usize;
             }
-
-            Vec::write_options(&truncated_vectors, writer, options, ())?;
-            offset_in_data += 8 * object.object.vertex_count as usize;
           }
           i32::write_options(&object.object.load_normals, writer, options, ())?;
           if object.object.load_normals == 1 {
             if object.object.quantized == 0 {
-              // Read Vector4s from the data and write out Vector3s, truncating the W component.
-              cursor.set_position(offset_in_data as u64);
-              let vectors = Vec::<Vector4>::read_options(
-                &mut cursor,
-                &ReadOptions::new(binrw::Endian::Big),
-                binrw::VecArgs::builder()
-                  .count(object.object.vertex_count as usize)
-                  .finalize(),
-              )
-              .unwrap();
+              if args.ror {
+                // Read Vector4s from the data and write out Vector3s, truncating the W component.
+                cursor.set_position(offset_in_data as u64);
+                let normals = Vec::<Vector4>::read_options(
+                  &mut cursor,
+                  &ReadOptions::new(binrw::Endian::Big),
+                  binrw::VecArgs::builder()
+                    .count(object.object.vertex_count as usize)
+                    .finalize(),
+                )
+                .unwrap();
 
-              let mut truncated_vectors = Vec::new();
-              for vec in vectors.iter() {
-                truncated_vectors.push(Vector3 {
-                  x: vec.x,
-                  y: vec.y,
-                  z: vec.z,
-                });
+                let mut truncated_normals = Vec::new();
+                for vec in normals.iter() {
+                  truncated_normals.push(Vector3 {
+                    x: vec.x,
+                    y: vec.y,
+                    z: vec.z,
+                  });
+                }
+
+                Vec::write_options(&truncated_normals, writer, options, ())?;
+                offset_in_data += 16 * object.object.vertex_count as usize;
+              } else {
+                let data = (&args.streaming_data
+                  [offset_in_data..offset_in_data + 12 * object.object.vertex_count as usize])
+                  .to_vec();
+                Vec::write_options(&data, writer, options, ())?;
+                offset_in_data += 12 * object.object.vertex_count as usize;
               }
-
-              Vec::write_options(&truncated_vectors, writer, options, ())?;
-              offset_in_data += 16 * object.object.vertex_count as usize;
             }
             if object.object.quantized == 1 {
-              // Read Vector4i16s from the data and write out Vector3i16s, truncating the W component.
-              cursor.set_position(offset_in_data as u64);
-              let vectors = Vec::<Vector4i16>::read_options(
-                &mut cursor,
-                &ReadOptions::new(binrw::Endian::Big),
-                binrw::VecArgs::builder()
-                  .count(object.object.vertex_count as usize)
-                  .finalize(),
-              )
-              .unwrap();
+              if args.ror {
+                // Read Vector4i16s from the data and write out Vector3i16s, truncating the W component.
+                cursor.set_position(offset_in_data as u64);
+                let normals = Vec::<Vector4i16>::read_options(
+                  &mut cursor,
+                  &ReadOptions::new(binrw::Endian::Big),
+                  binrw::VecArgs::builder()
+                    .count(object.object.vertex_count as usize)
+                    .finalize(),
+                )
+                .unwrap();
 
-              let mut truncated_vectors = Vec::new();
-              for vec in vectors.iter() {
-                truncated_vectors.push(Vector3i16 {
-                  x: vec.x,
-                  y: vec.y,
-                  z: vec.z,
-                });
+                let mut truncated_normals = Vec::new();
+                for vec in normals.iter() {
+                  truncated_normals.push(Vector3i16 {
+                    x: vec.x,
+                    y: vec.y,
+                    z: vec.z,
+                  });
+                }
+
+                Vec::write_options(&truncated_normals, writer, options, ())?;
+                offset_in_data += 8 * object.object.vertex_count as usize;
+              } else {
+                let data = (&args.streaming_data
+                  [offset_in_data..offset_in_data + 6 * object.object.vertex_count as usize])
+                  .to_vec();
+                Vec::write_options(&data, writer, options, ())?;
+                offset_in_data += 6 * object.object.vertex_count as usize;
               }
-
-              Vec::write_options(&truncated_vectors, writer, options, ())?;
-              offset_in_data += 8 * object.object.vertex_count as usize;
             }
           }
           // Nasty hack...
-          if object.object.vertex_count % 2 == 1 {
+          if args.ror && object.object.vertex_count % 2 == 1 {
             offset_in_data += 16;
           }
+          if args.ror {
+            // Read RaceORamaStreamingDataTreeFace from the data and write out TreeFaces.
+            cursor.set_position(offset_in_data as u64);
+            let ror_tree_faces = Vec::<RaceORamaStreamingDataTreeFace>::read_options(
+              &mut cursor,
+              &ReadOptions::new(binrw::Endian::Big),
+              binrw::VecArgs::builder()
+                .count(object.object.tree_face_count as usize)
+                .finalize(),
+            )
+            .unwrap();
 
-          // Read StreamingDataTreeFaces from the data and write out TreeFaces.
-          cursor.set_position(offset_in_data as u64);
-          let vectors = Vec::<StreamingDataTreeFace>::read_options(
-            &mut cursor,
-            &ReadOptions::new(binrw::Endian::Big),
-            binrw::VecArgs::builder()
-              .count(object.object.tree_face_count as usize)
-              .finalize(),
-          )
-          .unwrap();
+            let mut tree_faces = Vec::new();
+            for vec in ror_tree_faces.iter() {
+              tree_faces.push(vec.to_tree_face());
+            }
 
-          let mut tree_faces = Vec::new();
-          for vec in vectors.iter() {
-            tree_faces.push(vec.to_tree_face());
+            Vec::write_options(&tree_faces, writer, options, ())?;
+            offset_in_data += 64 * object.object.tree_face_count as usize;
+          } else {
+            // Read StreamingDataTreeFaces from the data and write out TreeFaces.
+            cursor.set_position(offset_in_data as u64);
+            let mn_tree_faces = Vec::<StreamingDataTreeFace>::read_options(
+              &mut cursor,
+              &ReadOptions::new(binrw::Endian::Big),
+              binrw::VecArgs::builder()
+                .count(object.object.tree_face_count as usize)
+                .finalize(),
+            )
+            .unwrap();
+
+            let mut tree_faces = Vec::new();
+            for vec in mn_tree_faces.iter() {
+              tree_faces.push(vec.to_tree_face());
+            }
+
+            Vec::write_options(&tree_faces, writer, options, ())?;
+            offset_in_data += 36 * object.object.tree_face_count as usize;
           }
+          if args.ror {
+            // Read StreamingDataTreeFaceLeaves from the data and write out TreeFaceLeaves.
+            cursor.set_position(offset_in_data as u64);
+            let ror_face_leaves = Vec::<RaceORamaStreamingDataTreeFaceLeaf>::read_options(
+              &mut cursor,
+              &ReadOptions::new(binrw::Endian::Big),
+              binrw::VecArgs::builder()
+                .count(object.object.tree_face_leaf_count as usize)
+                .finalize(),
+            )
+            .unwrap();
 
-          Vec::write_options(&tree_faces, writer, options, ())?;
-          offset_in_data += 64 * object.object.tree_face_count as usize;
+            let mut tree_face_leaves = Vec::new();
+            for vec in ror_face_leaves.iter() {
+              tree_face_leaves.push(vec.to_tree_face_leaf());
+            }
 
-          // Read StreamingDataTreeFaceLeaves from the data and write out TreeFaceLeaves.
-          cursor.set_position(offset_in_data as u64);
-          let vectors = Vec::<StreamingDataTreeFaceLeaf>::read_options(
-            &mut cursor,
-            &ReadOptions::new(binrw::Endian::Big),
-            binrw::VecArgs::builder()
-              .count(object.object.tree_face_leaf_count as usize)
-              .finalize(),
-          )
-          .unwrap();
+            Vec::write_options(&tree_face_leaves, writer, options, ())?;
+            offset_in_data += 32 * object.object.tree_face_leaf_count as usize;
+          } else {
+            // Read StreamingDataTreeFaceLeaves from the data and write out TreeFaceLeaves.
+            cursor.set_position(offset_in_data as u64);
+            let mn_face_leaves = Vec::<StreamingDataTreeFaceLeaf>::read_options(
+              &mut cursor,
+              &ReadOptions::new(binrw::Endian::Big),
+              binrw::VecArgs::builder()
+                .count(object.object.tree_face_leaf_count as usize)
+                .finalize(),
+            )
+            .unwrap();
 
-          let mut tree_face_leaves = Vec::new();
-          for vec in vectors.iter() {
-            tree_face_leaves.push(vec.to_tree_face_leaf());
+            let mut tree_face_leaves = Vec::new();
+            for vec in mn_face_leaves.iter() {
+              tree_face_leaves.push(vec.to_tree_face_leaf(&global_vertices));
+            }
+
+            Vec::write_options(&tree_face_leaves, writer, options, ())?;
+            offset_in_data += 20 * object.object.tree_face_leaf_count as usize;
           }
-
-          Vec::write_options(&tree_face_leaves, writer, options, ())?;
-          offset_in_data += 32 * object.object.tree_face_leaf_count as usize;
-          // assert_eq!(offset_in_data, args.streaming_data.len());
+          assert_eq!(offset_in_data, args.streaming_data.len());
         }
-        assert_eq!(offset_in_data, args.streaming_data.len());
       }
       CollisionType::StreamingFinitePlane => {
         CollisionType::write_options(&CollisionType::FinitePlane, writer, options, ())?;

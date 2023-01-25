@@ -15,7 +15,7 @@ impl std::fmt::Display for Vector4 {
   }
 }
 
-#[derive(Default, BinRead, BinWrite, Debug)]
+#[derive(Default, BinRead, BinWrite, Debug, Clone, Copy)]
 #[brw(big)]
 pub struct Vector3 {
   pub x: f32,
@@ -63,7 +63,7 @@ const NULL_BYTE: u8 = 0;
 const BACKSLASH: u8 = 92;
 const SLASH: u8 = 47;
 
-pub(crate) fn clean_path(input: &[u8]) -> String {
+pub fn clean_path(input: &[u8]) -> String {
   let mut output = Vec::new();
 
   for c in input {
@@ -81,7 +81,7 @@ pub(crate) fn clean_path(input: &[u8]) -> String {
   std::str::from_utf8(&output).unwrap().to_owned()
 }
 
-pub(crate) fn clean_string(input: &[u8]) -> String {
+pub fn clean_string(input: &[u8]) -> String {
   let mut output = Vec::new();
 
   for c in input {

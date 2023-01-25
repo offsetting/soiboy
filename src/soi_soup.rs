@@ -49,7 +49,7 @@ impl<TH: BinRead<Args = ()>> SoiSoup<TH> {
   pub fn static_textures(&self) -> &[StaticTexture] {
     self.soi.get_static_textures()
   }
-  
+
   pub fn motion_packs(&self) -> &[StreamingMotionPack] {
     self.soi.get_motion_packs()
   }

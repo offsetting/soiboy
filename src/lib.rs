@@ -5,6 +5,7 @@ pub use crate::soi::*;
 pub use crate::soi_soup::*;
 pub use crate::str::*;
 pub use crate::toc::*;
+pub use crate::utils::*;
 
 mod collision;
 mod model;

@@ -147,7 +147,7 @@ impl<TH: BinRead<Args = ()>> Soi<TH> {
   pub fn get_collision_models(&self) -> &[StreamingCollisionModel] {
     return &self.collision_models;
   }
-  
+
   pub fn find_static_texture(&self, section_id: u32, component_id: u32) -> Option<&StaticTexture> {
     for texture in &self.static_textures {
       let model_info = &texture.model_info;
