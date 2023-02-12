@@ -52,7 +52,7 @@ pub(crate) struct ZlibHeader {
 
 #[derive(BinRead, Debug)]
 pub struct SectionHeader {
-  pub name: [char; 260],
+  pub name: [u8; 260],
 
   pub total_component_count: i32,
   pub uncached_component_count: i32,
@@ -75,7 +75,7 @@ pub struct SectionHeader {
 
 #[derive(BinRead, Debug)]
 pub struct ComponentHeader {
-  raw_path: [char; 260],
+  raw_path: [u8; 260],
 
   pub instance_id: i32,
   pub id: i32,
