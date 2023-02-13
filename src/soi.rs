@@ -75,7 +75,7 @@ impl std::fmt::Display for StreamingParameter {
 }
 
 #[derive(BinRead, Debug)]
-pub struct StreamingTexture<TH: BinRead<Args = ()>> {
+pub struct StreamingTexture<TH: BinRead<Args<'static> = ()> + 'static>{
   pub model_info: ModelInfo,
   pub padding: u32,
   pub header: TH,
@@ -91,7 +91,7 @@ pub struct StaticTexture {
 }
 
 #[derive(BinRead, Debug)]
-pub struct Soi<TH: BinRead<Args = ()>> {
+pub struct Soi<TH: BinRead<Args<'static> = ()> + 'static> {
   pub header: Header,
 
   #[br(count = header.uncached_pages)]
@@ -118,7 +118,7 @@ pub struct Soi<TH: BinRead<Args = ()>> {
   collision_models: Vec<StreamingCollisionModel>,
 }
 
-impl<TH: BinRead<Args = ()>> Soi<TH> {
+impl<TH: BinRead<Args<'static> = ()>> Soi<TH> {
   pub fn read(path: &Path) -> BinResult<Self> {
     let mut file = File::open(path)?;
     Self::read_file(&mut file)

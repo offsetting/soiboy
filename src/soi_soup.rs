@@ -7,12 +7,12 @@ use crate::{
   StreamingRenderableModel, StreamingTexture, Toc,
 };
 
-pub struct SoiSoup<TH: BinRead<Args = ()>> {
+pub struct SoiSoup<TH: BinRead<Args<'static> = ()> + 'static> {
   toc: Toc,
   soi: Soi<TH>,
 }
 
-impl<TH: BinRead<Args = ()>> SoiSoup<TH> {
+impl<TH: BinRead<Args<'static> = ()>> SoiSoup<TH> {
   pub fn cook(toc_path: &Path, soi_path: &Path) -> BinResult<Self> {
     let soi = Soi::read(soi_path)?;
     let toc = Toc::read(toc_path, soi.header.version == 0x101)?;

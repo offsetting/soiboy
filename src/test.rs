@@ -10,9 +10,9 @@ use crate::{CollisionModelArgs, ComponentData, SoiSoup, Str, XNGHeaderArgs};
 
 #[test]
 fn extract() {
-  let toc_path = Path::new("D:\\GigaLeak\\Rs_A_Mn\\RS_A.x360.toc");
-  let soi_path = Path::new("D:\\GigaLeak\\Rs_A_Mn\\RS_A.x360.soi");
-  let str_path = Path::new("D:\\GigaLeak\\Rs_A_Mn\\RS_A.x360.str");
+  let toc_path = Path::new("./data/VehicleInfo.x360.toc");
+  let soi_path = Path::new("./data/VehicleInfo.x360.soi");
+  let str_path = Path::new("data/VehicleInfo.x360.str");
 
   let soup = SoiSoup::cook(toc_path, soi_path).unwrap();
   let mut str = Str::read(str_path).unwrap();

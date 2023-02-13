@@ -8,6 +8,9 @@ pub struct Vector4 {
   pub z: f32,
   pub w: f32,
 }
+const NULL_BYTE: u8 = b'\0';
+const BACKSLASH: u8 = b'\\';
+const SLASH: char = '/';
 
 impl std::fmt::Display for Vector4 {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -59,26 +62,22 @@ pub struct Vector4i16 {
   pub w: i16,
 }
 
-const NULL_BYTE: u8 = 0;
-const BACKSLASH: u8 = 92;
-const SLASH: u8 = 47;
-
-pub fn clean_path(input: &[u8]) -> String {
-  let mut output = Vec::new();
+pub(crate) fn clean_path(input: &[u8]) -> String {
+  let mut output = String::new();
 
   for c in input {
     if c == &NULL_BYTE {
-      return std::str::from_utf8(&output).unwrap().to_owned();
+      return output;
     }
 
     if c == &BACKSLASH {
       output.push(SLASH);
     } else {
-      output.push(*c)
+      output.push(*c as char)
     }
   }
 
-  std::str::from_utf8(&output).unwrap().to_owned()
+  output
 }
 
 pub fn clean_string(input: &[u8]) -> String {
