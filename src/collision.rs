@@ -1,5 +1,7 @@
+use binrw::{BinRead, BinResult, BinWrite, Endian};
+use std::io::{Seek, Write};
+
 use crate::utils::*;
-use binrw::{BinRead, BinResult, BinWrite, ReadOptions};
 
 // Members that are commented out are part of the streaming data section, and need to be merged into the contents of the header data after extraction.
 
@@ -218,19 +220,19 @@ pub struct CollisionModel {
   version: i32,
   collision_type: CollisionType,
 
-  #[br(if(collision_type == CollisionType::StreamingSoultree))]
+  #[br(if (collision_type == CollisionType::StreamingSoultree))]
   object: SoultreeCollisionObject,
 
-  #[br(if(collision_type == CollisionType::StreamingHeirarchy))]
+  #[br(if (collision_type == CollisionType::StreamingHeirarchy))]
   object_count: i32,
-  #[br(if(collision_type == CollisionType::StreamingHeirarchy))]
+  #[br(if (collision_type == CollisionType::StreamingHeirarchy))]
   reverse_collision_mode: i32,
-  #[br(if(collision_type == CollisionType::StreamingHeirarchy), count = object_count)]
+  #[br(if (collision_type == CollisionType::StreamingHeirarchy), count = object_count)]
   objects: Vec<StreamingHeirarchyEntry>,
 
-  #[br(if(collision_type == CollisionType::StreamingFinitePlane))]
+  #[br(if (collision_type == CollisionType::StreamingFinitePlane))]
   plane_count: i32,
-  #[br(if(collision_type == CollisionType::StreamingFinitePlane))]
+  #[br(if (collision_type == CollisionType::StreamingFinitePlane))]
   half: Vector3,
   // #[br(if(collision_type == CollisionType::FinitePlane), count = plane_count)]
   // planes: Vec<FinitePlaneStruct>,
@@ -262,7 +264,8 @@ impl std::fmt::Display for StreamingCollisionModel {
   }
 }
 
-#[derive(binrw::BinrwNamedArgs, Clone, Debug)]
+// Derive BinrwNamedArgs
+#[derive(Clone, Debug)]
 pub struct CollisionModelArgs {
   pub ror: bool,
   pub streaming_data: Vec<u8>,
@@ -271,18 +274,18 @@ pub struct CollisionModelArgs {
 // This BinWrite implementation actually restructures the streaming component data plus the header data in the SOI to form a proper GOL file.
 // As such, the streaming data must be passed to write_options.
 impl BinWrite for CollisionModel {
-  type Args = CollisionModelArgs;
+  type Args<'a> = &'a CollisionModelArgs;
 
-  fn write_options<W: std::io::Write + std::io::Seek>(
+  fn write_options<W: Write + Seek>(
     &self,
     writer: &mut W,
-    options: &binrw::WriteOptions,
-    args: Self::Args,
-  ) -> binrw::BinResult<()> {
+    endian: Endian,
+    args: Self::Args<'_>,
+  ) -> BinResult<()> {
     let magic = b"\x00\x00\x04\xD2".to_vec();
-    Vec::write_options(&magic, writer, options, ())?;
-    self.col_type.write_options(writer, options, ())?;
-    i32::write_options(&self.version, writer, options, ())?;
+    Vec::write_options(&magic, writer, endian, ())?;
+    self.col_type.write_options(writer, endian, ())?;
+    i32::write_options(&self.version, writer, endian, ())?;
 
     let mut offset_in_data: usize = 0;
 
@@ -299,15 +302,15 @@ impl BinWrite for CollisionModel {
       CollisionType::Ecosystem => panic!("Unsupported collision type!"),
       CollisionType::FinitePlane => panic!("Unsupported collision type!"),
       CollisionType::StreamingSoultree => {
-        CollisionType::write_options(&CollisionType::Soultree, writer, options, ())?;
+        CollisionType::write_options(&CollisionType::Soultree, writer, endian, ())?;
 
-        i32::write_options(&self.object.temp_cmt, writer, options, ())?;
-        self.object.obb_data.write_options(writer, options, ())?;
-        i32::write_options(&self.object.reverse_collision_mode, writer, options, ())?;
-        u32::write_options(&self.object.vertex_count, writer, options, ())?;
-        u32::write_options(&self.object.tree_face_count, writer, options, ())?;
-        u32::write_options(&self.object.tree_face_leaf_count, writer, options, ())?;
-        i32::write_options(&self.object.quantized, writer, options, ())?;
+        i32::write_options(&self.object.temp_cmt, writer, endian, ())?;
+        self.object.obb_data.write_options(writer, endian, ())?;
+        i32::write_options(&self.object.reverse_collision_mode, writer, endian, ())?;
+        u32::write_options(&self.object.vertex_count, writer, endian, ())?;
+        u32::write_options(&self.object.tree_face_count, writer, endian, ())?;
+        u32::write_options(&self.object.tree_face_leaf_count, writer, endian, ())?;
+        i32::write_options(&self.object.quantized, writer, endian, ())?;
 
         // Conversion from MN's streaming format requires the vertices be cached and used later for DValue calculation.
         let mut global_vertices = Vec::new();
@@ -318,7 +321,7 @@ impl BinWrite for CollisionModel {
             cursor.set_position(offset_in_data as u64);
             let vertices = Vec::<Vector4>::read_options(
               &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
+              binrw::Endian::Big,
               binrw::VecArgs::builder()
                 .count(self.object.vertex_count as usize)
                 .finalize(),
@@ -334,20 +337,20 @@ impl BinWrite for CollisionModel {
               });
             }
 
-            Vec::write_options(&truncated_vertices, writer, options, ())?;
+            Vec::write_options(&truncated_vertices, writer, endian, ())?;
             offset_in_data += 16 * self.object.vertex_count as usize;
           } else {
             cursor.set_position(offset_in_data as u64);
             global_vertices = Vec::<Vector3>::read_options(
               &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
+              binrw::Endian::Big,
               binrw::VecArgs::builder()
                 .count(self.object.vertex_count as usize)
                 .finalize(),
             )
             .unwrap();
 
-            Vec::write_options(&global_vertices, writer, options, ())?;
+            Vec::write_options(&global_vertices, writer, endian, ())?;
             offset_in_data += 12 * self.object.vertex_count as usize;
 
             // let data = (&args.streaming_data[offset_in_data..offset_in_data + 12 * self.object.vertex_count as usize]).to_vec();
@@ -361,7 +364,7 @@ impl BinWrite for CollisionModel {
             cursor.set_position(offset_in_data as u64);
             let vertices = Vec::<Vector4i16>::read_options(
               &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
+              Endian::Big,
               binrw::VecArgs::builder()
                 .count(self.object.vertex_count as usize)
                 .finalize(),
@@ -377,20 +380,20 @@ impl BinWrite for CollisionModel {
               });
             }
 
-            Vec::write_options(&truncated_vertices, writer, options, ())?;
+            Vec::write_options(&truncated_vertices, writer, endian, ())?;
             offset_in_data += 8 * self.object.vertex_count as usize;
           } else {
             cursor.set_position(offset_in_data as u64);
             let quantized_vertices = Vec::<Vector3i16>::read_options(
               &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
+              binrw::Endian::Big,
               binrw::VecArgs::builder()
                 .count(self.object.vertex_count as usize)
                 .finalize(),
             )
             .unwrap();
 
-            Vec::write_options(&quantized_vertices, writer, options, ())?;
+            Vec::write_options(&quantized_vertices, writer, endian, ())?;
             offset_in_data += 6 * self.object.vertex_count as usize;
 
             for vec in quantized_vertices.iter() {
@@ -406,7 +409,7 @@ impl BinWrite for CollisionModel {
             // offset_in_data += 6 * self.object.vertex_count as usize;
           }
         }
-        i32::write_options(&self.object.load_normals, writer, options, ())?;
+        i32::write_options(&self.object.load_normals, writer, endian, ())?;
         if self.object.load_normals == 1 {
           if self.object.quantized == 0 {
             if args.ror {
@@ -414,7 +417,7 @@ impl BinWrite for CollisionModel {
               cursor.set_position(offset_in_data as u64);
               let normals = Vec::<Vector4>::read_options(
                 &mut cursor,
-                &ReadOptions::new(binrw::Endian::Big),
+                binrw::Endian::Big,
                 binrw::VecArgs::builder()
                   .count(self.object.vertex_count as usize)
                   .finalize(),
@@ -430,13 +433,13 @@ impl BinWrite for CollisionModel {
                 });
               }
 
-              Vec::write_options(&truncated_normals, writer, options, ())?;
+              Vec::write_options(&truncated_normals, writer, endian, ())?;
               offset_in_data += 16 * self.object.vertex_count as usize;
             } else {
               let data = (&args.streaming_data
                 [offset_in_data..offset_in_data + 12 * self.object.vertex_count as usize])
                 .to_vec();
-              Vec::write_options(&data, writer, options, ())?;
+              Vec::write_options(&data, writer, endian, ())?;
               offset_in_data += 12 * self.object.vertex_count as usize;
             }
           }
@@ -446,7 +449,7 @@ impl BinWrite for CollisionModel {
               cursor.set_position(offset_in_data as u64);
               let normals = Vec::<Vector4i16>::read_options(
                 &mut cursor,
-                &ReadOptions::new(binrw::Endian::Big),
+                binrw::Endian::Big,
                 binrw::VecArgs::builder()
                   .count(self.object.vertex_count as usize)
                   .finalize(),
@@ -462,13 +465,13 @@ impl BinWrite for CollisionModel {
                 });
               }
 
-              Vec::write_options(&truncated_normals, writer, options, ())?;
+              Vec::write_options(&truncated_normals, writer, endian, ())?;
               offset_in_data += 8 * self.object.vertex_count as usize;
             } else {
               let data = (&args.streaming_data
                 [offset_in_data..offset_in_data + 6 * self.object.vertex_count as usize])
                 .to_vec();
-              Vec::write_options(&data, writer, options, ())?;
+              Vec::write_options(&data, writer, endian, ())?;
               offset_in_data += 6 * self.object.vertex_count as usize;
             }
           }
@@ -482,7 +485,7 @@ impl BinWrite for CollisionModel {
           cursor.set_position(offset_in_data as u64);
           let ror_tree_faces = Vec::<RaceORamaStreamingDataTreeFace>::read_options(
             &mut cursor,
-            &ReadOptions::new(binrw::Endian::Big),
+            binrw::Endian::Big,
             binrw::VecArgs::builder()
               .count(self.object.tree_face_count as usize)
               .finalize(),
@@ -494,14 +497,14 @@ impl BinWrite for CollisionModel {
             tree_faces.push(vec.to_tree_face());
           }
 
-          Vec::write_options(&tree_faces, writer, options, ())?;
+          Vec::write_options(&tree_faces, writer, endian, ())?;
           offset_in_data += 64 * self.object.tree_face_count as usize;
         } else {
           // Read StreamingDataTreeFaces from the data and write out TreeFaces.
           cursor.set_position(offset_in_data as u64);
           let mn_tree_faces = Vec::<StreamingDataTreeFace>::read_options(
             &mut cursor,
-            &ReadOptions::new(binrw::Endian::Big),
+            binrw::Endian::Big,
             binrw::VecArgs::builder()
               .count(self.object.tree_face_count as usize)
               .finalize(),
@@ -513,7 +516,7 @@ impl BinWrite for CollisionModel {
             tree_faces.push(vec.to_tree_face());
           }
 
-          Vec::write_options(&tree_faces, writer, options, ())?;
+          Vec::write_options(&tree_faces, writer, endian, ())?;
           offset_in_data += 36 * self.object.tree_face_count as usize;
         }
         if args.ror {
@@ -521,7 +524,7 @@ impl BinWrite for CollisionModel {
           cursor.set_position(offset_in_data as u64);
           let ror_face_leaves = Vec::<RaceORamaStreamingDataTreeFaceLeaf>::read_options(
             &mut cursor,
-            &ReadOptions::new(binrw::Endian::Big),
+            binrw::Endian::Big,
             binrw::VecArgs::builder()
               .count(self.object.tree_face_leaf_count as usize)
               .finalize(),
@@ -533,14 +536,14 @@ impl BinWrite for CollisionModel {
             tree_face_leaves.push(vec.to_tree_face_leaf());
           }
 
-          Vec::write_options(&tree_face_leaves, writer, options, ())?;
+          Vec::write_options(&tree_face_leaves, writer, endian, ())?;
           offset_in_data += 32 * self.object.tree_face_leaf_count as usize;
         } else {
           // Read StreamingDataTreeFaceLeaves from the data and write out TreeFaceLeaves.
           cursor.set_position(offset_in_data as u64);
           let mn_face_leaves = Vec::<StreamingDataTreeFaceLeaf>::read_options(
             &mut cursor,
-            &ReadOptions::new(binrw::Endian::Big),
+            binrw::Endian::Big,
             binrw::VecArgs::builder()
               .count(self.object.tree_face_leaf_count as usize)
               .finalize(),
@@ -552,24 +555,24 @@ impl BinWrite for CollisionModel {
             tree_face_leaves.push(vec.to_tree_face_leaf(&global_vertices));
           }
 
-          Vec::write_options(&tree_face_leaves, writer, options, ())?;
+          Vec::write_options(&tree_face_leaves, writer, endian, ())?;
           offset_in_data += 20 * self.object.tree_face_leaf_count as usize;
         }
         assert_eq!(offset_in_data, args.streaming_data.len());
       }
       CollisionType::StreamingHeirarchy => {
-        CollisionType::write_options(&CollisionType::SoultreeHeirarchy, writer, options, ())?;
+        CollisionType::write_options(&CollisionType::SoultreeHeirarchy, writer, endian, ())?;
 
-        i32::write_options(&self.object_count, writer, options, ())?;
-        i32::write_options(&self.reverse_collision_mode, writer, options, ())?;
+        i32::write_options(&self.object_count, writer, endian, ())?;
+        i32::write_options(&self.reverse_collision_mode, writer, endian, ())?;
         for object in &self.objects {
-          i32::write_options(&object.object.temp_cmt, writer, options, ())?;
-          object.object.obb_data.write_options(writer, options, ())?;
-          i32::write_options(&object.object.reverse_collision_mode, writer, options, ())?;
-          u32::write_options(&object.object.vertex_count, writer, options, ())?;
-          u32::write_options(&object.object.tree_face_count, writer, options, ())?;
-          u32::write_options(&object.object.tree_face_leaf_count, writer, options, ())?;
-          i32::write_options(&object.object.quantized, writer, options, ())?;
+          i32::write_options(&object.object.temp_cmt, writer, endian, ())?;
+          object.object.obb_data.write_options(writer, endian, ())?;
+          i32::write_options(&object.object.reverse_collision_mode, writer, endian, ())?;
+          u32::write_options(&object.object.vertex_count, writer, endian, ())?;
+          u32::write_options(&object.object.tree_face_count, writer, endian, ())?;
+          u32::write_options(&object.object.tree_face_leaf_count, writer, endian, ())?;
+          i32::write_options(&object.object.quantized, writer, endian, ())?;
 
           // Conversion from MN's streaming format requires the vertices be cached and used later for DValue calculation.
           let mut global_vertices = Vec::new();
@@ -580,7 +583,7 @@ impl BinWrite for CollisionModel {
               cursor.set_position(offset_in_data as u64);
               let vertices = Vec::<Vector4>::read_options(
                 &mut cursor,
-                &ReadOptions::new(binrw::Endian::Big),
+                binrw::Endian::Big,
                 binrw::VecArgs::builder()
                   .count(object.object.vertex_count as usize)
                   .finalize(),
@@ -596,20 +599,20 @@ impl BinWrite for CollisionModel {
                 });
               }
 
-              Vec::write_options(&truncated_vertices, writer, options, ())?;
+              Vec::write_options(&truncated_vertices, writer, endian, ())?;
               offset_in_data += 16 * object.object.vertex_count as usize;
             } else {
               cursor.set_position(offset_in_data as u64);
               global_vertices = Vec::<Vector3>::read_options(
                 &mut cursor,
-                &ReadOptions::new(binrw::Endian::Big),
+                binrw::Endian::Big,
                 binrw::VecArgs::builder()
                   .count(object.object.vertex_count as usize)
                   .finalize(),
               )
               .unwrap();
 
-              Vec::write_options(&global_vertices, writer, options, ())?;
+              Vec::write_options(&global_vertices, writer, endian, ())?;
               offset_in_data += 12 * object.object.vertex_count as usize;
 
               // let data = (&args.streaming_data[offset_in_data..offset_in_data + 12 * object.object.vertex_count as usize]).to_vec();
@@ -623,7 +626,7 @@ impl BinWrite for CollisionModel {
               cursor.set_position(offset_in_data as u64);
               let vertices = Vec::<Vector4i16>::read_options(
                 &mut cursor,
-                &ReadOptions::new(binrw::Endian::Big),
+                binrw::Endian::Big,
                 binrw::VecArgs::builder()
                   .count(object.object.vertex_count as usize)
                   .finalize(),
@@ -639,20 +642,20 @@ impl BinWrite for CollisionModel {
                 });
               }
 
-              Vec::write_options(&truncated_vertices, writer, options, ())?;
+              Vec::write_options(&truncated_vertices, writer, endian, ())?;
               offset_in_data += 8 * object.object.vertex_count as usize;
             } else {
               cursor.set_position(offset_in_data as u64);
               let quantized_vertices = Vec::<Vector3i16>::read_options(
                 &mut cursor,
-                &ReadOptions::new(binrw::Endian::Big),
+                binrw::Endian::Big,
                 binrw::VecArgs::builder()
                   .count(object.object.vertex_count as usize)
                   .finalize(),
               )
               .unwrap();
 
-              Vec::write_options(&quantized_vertices, writer, options, ())?;
+              Vec::write_options(&quantized_vertices, writer, endian, ())?;
               offset_in_data += 6 * object.object.vertex_count as usize;
 
               for vec in quantized_vertices.iter() {
@@ -668,7 +671,7 @@ impl BinWrite for CollisionModel {
               // offset_in_data += 6 * object.object.vertex_count as usize;
             }
           }
-          i32::write_options(&object.object.load_normals, writer, options, ())?;
+          i32::write_options(&object.object.load_normals, writer, endian, ())?;
           if object.object.load_normals == 1 {
             if object.object.quantized == 0 {
               if args.ror {
@@ -676,7 +679,7 @@ impl BinWrite for CollisionModel {
                 cursor.set_position(offset_in_data as u64);
                 let normals = Vec::<Vector4>::read_options(
                   &mut cursor,
-                  &ReadOptions::new(binrw::Endian::Big),
+                  binrw::Endian::Big,
                   binrw::VecArgs::builder()
                     .count(object.object.vertex_count as usize)
                     .finalize(),
@@ -692,13 +695,13 @@ impl BinWrite for CollisionModel {
                   });
                 }
 
-                Vec::write_options(&truncated_normals, writer, options, ())?;
+                Vec::write_options(&truncated_normals, writer, endian, ())?;
                 offset_in_data += 16 * object.object.vertex_count as usize;
               } else {
                 let data = (&args.streaming_data
                   [offset_in_data..offset_in_data + 12 * object.object.vertex_count as usize])
                   .to_vec();
-                Vec::write_options(&data, writer, options, ())?;
+                Vec::write_options(&data, writer, endian, ())?;
                 offset_in_data += 12 * object.object.vertex_count as usize;
               }
             }
@@ -708,7 +711,7 @@ impl BinWrite for CollisionModel {
                 cursor.set_position(offset_in_data as u64);
                 let normals = Vec::<Vector4i16>::read_options(
                   &mut cursor,
-                  &ReadOptions::new(binrw::Endian::Big),
+                  binrw::Endian::Big,
                   binrw::VecArgs::builder()
                     .count(object.object.vertex_count as usize)
                     .finalize(),
@@ -724,13 +727,13 @@ impl BinWrite for CollisionModel {
                   });
                 }
 
-                Vec::write_options(&truncated_normals, writer, options, ())?;
+                Vec::write_options(&truncated_normals, writer, endian, ())?;
                 offset_in_data += 8 * object.object.vertex_count as usize;
               } else {
                 let data = (&args.streaming_data
                   [offset_in_data..offset_in_data + 6 * object.object.vertex_count as usize])
                   .to_vec();
-                Vec::write_options(&data, writer, options, ())?;
+                Vec::write_options(&data, writer, endian, ())?;
                 offset_in_data += 6 * object.object.vertex_count as usize;
               }
             }
@@ -744,7 +747,7 @@ impl BinWrite for CollisionModel {
             cursor.set_position(offset_in_data as u64);
             let ror_tree_faces = Vec::<RaceORamaStreamingDataTreeFace>::read_options(
               &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
+              binrw::Endian::Big,
               binrw::VecArgs::builder()
                 .count(object.object.tree_face_count as usize)
                 .finalize(),
@@ -756,14 +759,14 @@ impl BinWrite for CollisionModel {
               tree_faces.push(vec.to_tree_face());
             }
 
-            Vec::write_options(&tree_faces, writer, options, ())?;
+            Vec::write_options(&tree_faces, writer, endian, ())?;
             offset_in_data += 64 * object.object.tree_face_count as usize;
           } else {
             // Read StreamingDataTreeFaces from the data and write out TreeFaces.
             cursor.set_position(offset_in_data as u64);
             let mn_tree_faces = Vec::<StreamingDataTreeFace>::read_options(
               &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
+              binrw::Endian::Big,
               binrw::VecArgs::builder()
                 .count(object.object.tree_face_count as usize)
                 .finalize(),
@@ -775,7 +778,7 @@ impl BinWrite for CollisionModel {
               tree_faces.push(vec.to_tree_face());
             }
 
-            Vec::write_options(&tree_faces, writer, options, ())?;
+            Vec::write_options(&tree_faces, writer, endian, ())?;
             offset_in_data += 36 * object.object.tree_face_count as usize;
           }
           if args.ror {
@@ -783,7 +786,7 @@ impl BinWrite for CollisionModel {
             cursor.set_position(offset_in_data as u64);
             let ror_face_leaves = Vec::<RaceORamaStreamingDataTreeFaceLeaf>::read_options(
               &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
+              binrw::Endian::Big,
               binrw::VecArgs::builder()
                 .count(object.object.tree_face_leaf_count as usize)
                 .finalize(),
@@ -795,14 +798,14 @@ impl BinWrite for CollisionModel {
               tree_face_leaves.push(vec.to_tree_face_leaf());
             }
 
-            Vec::write_options(&tree_face_leaves, writer, options, ())?;
+            Vec::write_options(&tree_face_leaves, writer, endian, ())?;
             offset_in_data += 32 * object.object.tree_face_leaf_count as usize;
           } else {
             // Read StreamingDataTreeFaceLeaves from the data and write out TreeFaceLeaves.
             cursor.set_position(offset_in_data as u64);
             let mn_face_leaves = Vec::<StreamingDataTreeFaceLeaf>::read_options(
               &mut cursor,
-              &ReadOptions::new(binrw::Endian::Big),
+              binrw::Endian::Big,
               binrw::VecArgs::builder()
                 .count(object.object.tree_face_leaf_count as usize)
                 .finalize(),
@@ -814,19 +817,19 @@ impl BinWrite for CollisionModel {
               tree_face_leaves.push(vec.to_tree_face_leaf(&global_vertices));
             }
 
-            Vec::write_options(&tree_face_leaves, writer, options, ())?;
+            Vec::write_options(&tree_face_leaves, writer, endian, ())?;
             offset_in_data += 20 * object.object.tree_face_leaf_count as usize;
           }
           assert_eq!(offset_in_data, args.streaming_data.len());
         }
       }
       CollisionType::StreamingFinitePlane => {
-        CollisionType::write_options(&CollisionType::FinitePlane, writer, options, ())?;
+        CollisionType::write_options(&CollisionType::FinitePlane, writer, endian, ())?;
 
-        i32::write_options(&self.plane_count, writer, options, ())?;
-        Vector3::write_options(&self.half, writer, options, ())?;
+        i32::write_options(&self.plane_count, writer, endian, ())?;
+        Vector3::write_options(&self.half, writer, endian, ())?;
 
-        Vec::write_options(&args.streaming_data, writer, options, ())?;
+        Vec::write_options(&args.streaming_data, writer, endian, ())?;
         // assert_eq!(self.plane_count as usize * 60, args.streaming_data.len());
       }
     }

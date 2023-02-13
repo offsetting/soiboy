@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Seek;
 use std::path::Path;
 
-use binrw::{BinRead, BinReaderExt, BinResult};
+use binrw::{BinRead, BinResult};
 
 use crate::utils::clean_path;
 

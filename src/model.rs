@@ -1,7 +1,7 @@
-use std::str::Bytes;
+use binrw::{BinRead, BinResult, BinWrite, Endian};
+use std::io::{Seek, Write};
 
 use crate::utils::*;
-use binrw::{BinRead, BinResult, BinWrite, BinrwNamedArgs};
 
 #[derive(BinRead, BinWrite, Debug)]
 #[brw(big)]
@@ -59,7 +59,7 @@ pub struct StreamingXNGMesh {
   pub surface_index: u32,
   pub vertex_type: u32,
 
-  #[br(if((vertex_type & 0x2000) == 0x2000))]
+  #[br(if ((vertex_type & 0x2000) == 0x2000))]
   pub compression_stuff: Option<[f32; 8]>,
 
   pub num_texture_coordinate_sets: u8,
@@ -75,7 +75,7 @@ pub struct StreamingXNGMesh {
   pub num_vertices: u16,
   pub num_face_indices: u16,
 
-  #[br(if((vertex_type & 0x100) == 0x100))]
+  #[br(if ((vertex_type & 0x100) == 0x100))]
   pub delta_block: Option<XNGDeltaBlock>,
 }
 
@@ -139,7 +139,8 @@ impl std::fmt::Display for StreamingRenderableModel {
   }
 }
 
-#[derive(BinrwNamedArgs, Clone, Debug)]
+// BinrwNamedArgs
+#[derive(Clone, Debug)]
 pub struct XNGHeaderArgs {
   pub streaming_data: Vec<u8>,
 }
@@ -147,47 +148,47 @@ pub struct XNGHeaderArgs {
 // This BinWrite implementation actually restructures the streaming component data plus the header data in the SOI to form a proper XNG file.
 // As such, the streaming data must be passed to write_options.
 impl BinWrite for XNGHeader {
-  type Args = XNGHeaderArgs;
+  type Args<'a> = &'a XNGHeaderArgs;
 
-  fn write_options<W: std::io::Write + std::io::Seek>(
+  fn write_options<W: Write + Seek>(
     &self,
     writer: &mut W,
-    options: &binrw::WriteOptions,
-    args: Self::Args,
-  ) -> binrw::BinResult<()> {
+    endian: Endian,
+    args: Self::Args<'_>,
+  ) -> BinResult<()> {
     let magic = b"xng\0".to_vec();
-    Vec::write_options(&magic, writer, options, ())?;
-    i32::write_options(&self.version, writer, options, ())?;
-    u32::write_options(&self.num_bones, writer, options, ())?;
-    Vec::write_options(&self.bones, writer, options, ())?;
-    i32::write_options(&self.num_mesh_names, writer, options, ())?;
-    Vec::write_options(&self.mesh_names, writer, options, ())?;
-    u8::write_options(&self.num_lod, writer, options, ())?;
-    u8::write_options(&self.skin_animates_flag, writer, options, ())?;
-    u8::write_options(&self.has_weight, writer, options, ())?;
-    u8::write_options(&self.unused, writer, options, ())?;
+    Vec::write_options(&magic, writer, endian, ())?;
+    i32::write_options(&self.version, writer, endian, ())?;
+    u32::write_options(&self.num_bones, writer, endian, ())?;
+    Vec::write_options(&self.bones, writer, endian, ())?;
+    i32::write_options(&self.num_mesh_names, writer, endian, ())?;
+    Vec::write_options(&self.mesh_names, writer, endian, ())?;
+    u8::write_options(&self.num_lod, writer, endian, ())?;
+    u8::write_options(&self.skin_animates_flag, writer, endian, ())?;
+    u8::write_options(&self.has_weight, writer, endian, ())?;
+    u8::write_options(&self.unused, writer, endian, ())?;
 
     let mut offset_in_data: usize = 0;
 
     for lod in &self.lods {
-      f32::write_options(&lod.auto_lod_value, writer, options, ())?;
-      u32::write_options(&lod.num_meshes, writer, options, ())?;
+      f32::write_options(&lod.auto_lod_value, writer, endian, ())?;
+      u32::write_options(&lod.num_meshes, writer, endian, ())?;
       for mesh in &lod.meshes {
-        u32::write_options(&mesh.surface_index, writer, options, ())?;
-        u32::write_options(&mesh.vertex_type, writer, options, ())?;
+        u32::write_options(&mesh.surface_index, writer, endian, ())?;
+        u32::write_options(&mesh.vertex_type, writer, endian, ())?;
         if let Some(compression_stuff) = mesh.compression_stuff {
-          compression_stuff.write_options(writer, options, ())?;
+          compression_stuff.write_options(writer, endian, ())?;
         }
-        u8::write_options(&mesh.num_texture_coordinate_sets, writer, options, ())?;
-        u8::write_options(&mesh.compressed, writer, options, ())?;
-        u8::write_options(&0, writer, options, ())?;
-        u8::write_options(&mesh.unk, writer, options, ())?;
-        u8::write_options(&mesh.unk2, writer, options, ())?;
-        u8::write_options(&mesh.unk3, writer, options, ())?;
-        Vec::write_options(&mesh.texture_coordinate_sets, writer, options, ())?;
+        u8::write_options(&mesh.num_texture_coordinate_sets, writer, endian, ())?;
+        u8::write_options(&mesh.compressed, writer, endian, ())?;
+        u8::write_options(&0, writer, endian, ())?;
+        u8::write_options(&mesh.unk, writer, endian, ())?;
+        u8::write_options(&mesh.unk2, writer, endian, ())?;
+        u8::write_options(&mesh.unk3, writer, endian, ())?;
+        Vec::write_options(&mesh.texture_coordinate_sets, writer, endian, ())?;
 
-        u16::write_options(&mesh.num_vertices, writer, options, ())?;
-        u16::write_options(&mesh.num_face_indices, writer, options, ())?;
+        u16::write_options(&mesh.num_vertices, writer, endian, ())?;
+        u16::write_options(&mesh.num_face_indices, writer, endian, ())?;
 
         assert!(mesh.streaming == 1);
 
@@ -228,12 +229,12 @@ impl BinWrite for XNGHeader {
         }
 
         let data = (&args.streaming_data[offset_in_data..offset_in_data + offset]).to_vec();
-        Vec::write_options(&data, writer, options, ())?;
+        Vec::write_options(&data, writer, endian, ())?;
 
         offset_in_data += offset;
 
         if let Some(delta_block) = &mesh.delta_block {
-          delta_block.write_options(writer, options, ())?;
+          delta_block.write_options(writer, endian, ())?;
         }
       }
     }

@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::path::Path;
 
-use binrw::{io::SeekFrom, BinRead, BinReaderExt, BinResult, BinWrite};
+use binrw::{BinRead, BinReaderExt, BinResult};
 
 use crate::collision::*;
 use crate::model::*;
@@ -75,7 +75,7 @@ impl std::fmt::Display for StreamingParameter {
 }
 
 #[derive(BinRead, Debug)]
-pub struct StreamingTexture<TH: BinRead<Args<'static> = ()> + 'static>{
+pub struct StreamingTexture<TH: BinRead<Args<'static> = ()> + 'static> {
   pub model_info: ModelInfo,
   pub padding: u32,
   pub header: TH,

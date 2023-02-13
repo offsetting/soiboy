@@ -8,6 +8,7 @@ pub struct Vector4 {
   pub z: f32,
   pub w: f32,
 }
+
 const NULL_BYTE: u8 = b'\0';
 const BACKSLASH: u8 = b'\\';
 const SLASH: char = '/';

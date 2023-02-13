@@ -1,4 +1,4 @@
-use binrw::{BinRead, BinResult, BinWrite};
+use binrw::{BinRead, BinWrite};
 
 #[derive(BinRead, BinWrite, Debug)]
 #[br(big)]
@@ -30,11 +30,11 @@ pub struct StreamingMotionPackHeader {
   num_camera_infos: u32,
   padding: u32,
 
-  #[br(if(version == -8))]
+  #[br(if (version == - 8))]
   #[bw(ignore)]
   unk_bpb_size: u32,
 
-  #[br(if(version == -8), count = unk_bpb_size)]
+  #[br(if (version == - 8), count = unk_bpb_size)]
   #[bw(ignore)]
   unk_bpb: Vec<u8>,
 }
