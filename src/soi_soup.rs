@@ -2,7 +2,10 @@ use std::path::Path;
 
 use binrw::{BinRead, BinResult};
 
-use crate::{ComponentHeader, Section, Soi, Toc};
+use crate::{
+  ComponentHeader, Section, Soi, StaticTexture, StreamingCollisionModel, StreamingMotionPack,
+  StreamingRenderableModel, StreamingTexture, Toc,
+};
 
 pub struct SoiSoup<TH: BinRead<Args<'static> = ()> + 'static> {
   toc: Toc,
@@ -11,8 +14,8 @@ pub struct SoiSoup<TH: BinRead<Args<'static> = ()> + 'static> {
 
 impl<TH: BinRead<Args<'static> = ()>> SoiSoup<TH> {
   pub fn cook(toc_path: &Path, soi_path: &Path) -> BinResult<Self> {
-    let toc = Toc::read(toc_path)?;
     let soi = Soi::read(soi_path)?;
+    let toc = Toc::read(toc_path, soi.header.version == 0x101)?;
 
     Ok(Self { toc, soi })
   }
@@ -39,6 +42,26 @@ impl<TH: BinRead<Args<'static> = ()>> SoiSoup<TH> {
     components
   }
 
+  pub fn streaming_textures(&self) -> &[StreamingTexture<TH>] {
+    self.soi.get_streaming_textures()
+  }
+
+  pub fn static_textures(&self) -> &[StaticTexture] {
+    self.soi.get_static_textures()
+  }
+
+  pub fn motion_packs(&self) -> &[StreamingMotionPack] {
+    self.soi.get_motion_packs()
+  }
+
+  pub fn renderable_models(&self) -> &[StreamingRenderableModel] {
+    self.soi.get_renderable_models()
+  }
+
+  pub fn collision_models(&self) -> &[StreamingCollisionModel] {
+    self.soi.get_collision_models()
+  }
+
   pub fn component_count(&self) -> u32 {
     let mut sum = 0;
 
@@ -49,17 +72,73 @@ impl<TH: BinRead<Args<'static> = ()>> SoiSoup<TH> {
     sum as u32
   }
 
-  pub fn find_texture_header(
+  pub fn find_static_texture(
     &self,
     section_id: u32,
     component_id: u32,
     instance_id: u32,
-  ) -> Option<&TH> {
-    if let Some(header) = self.soi.find_texture_header(section_id, component_id) {
+  ) -> Option<&StaticTexture> {
+    if let Some(header) = self.soi.find_static_texture(section_id, component_id) {
       return Some(header);
     }
 
     let (section_id, component_id) = self.toc.find_ids(instance_id)?;
-    self.soi.find_texture_header(section_id, component_id)
+    self.soi.find_static_texture(section_id, component_id)
+  }
+
+  pub fn find_streaming_texture(
+    &self,
+    section_id: u32,
+    component_id: u32,
+    instance_id: u32,
+  ) -> Option<&StreamingTexture<TH>> {
+    if let Some(header) = self.soi.find_streaming_texture(section_id, component_id) {
+      return Some(header);
+    }
+
+    let (section_id, component_id) = self.toc.find_ids(instance_id)?;
+    self.soi.find_streaming_texture(section_id, component_id)
+  }
+
+  pub fn find_motion_pack(
+    &self,
+    section_id: u32,
+    component_id: u32,
+    instance_id: u32,
+  ) -> Option<&StreamingMotionPack> {
+    if let Some(header) = self.soi.find_motion_pack(section_id, component_id) {
+      return Some(header);
+    }
+
+    let (section_id, component_id) = self.toc.find_ids(instance_id)?;
+    self.soi.find_motion_pack(section_id, component_id)
+  }
+
+  pub fn find_collision_model(
+    &self,
+    section_id: u32,
+    component_id: u32,
+    instance_id: u32,
+  ) -> Option<&StreamingCollisionModel> {
+    if let Some(header) = self.soi.find_collision_model(section_id, component_id) {
+      return Some(header);
+    }
+
+    let (section_id, component_id) = self.toc.find_ids(instance_id)?;
+    self.soi.find_collision_model(section_id, component_id)
+  }
+
+  pub fn find_model(
+    &self,
+    section_id: u32,
+    component_id: u32,
+    instance_id: u32,
+  ) -> Option<&StreamingRenderableModel> {
+    if let Some(header) = self.soi.find_model(section_id, component_id) {
+      return Some(header);
+    }
+
+    let (section_id, component_id) = self.toc.find_ids(instance_id)?;
+    self.soi.find_model(section_id, component_id)
   }
 }
